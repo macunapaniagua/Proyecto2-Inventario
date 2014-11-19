@@ -68,7 +68,8 @@ public class Ventana extends javax.swing.JFrame {
 
     /**
      * Metodo utilizado para cargar todos los valores de las FK en su respectivo
-     * ComboBox. Este valor es almacenado si la tupla posea el campo activo = 'S'
+     * ComboBox. Este valor es almacenado si la tupla posea el campo activo =
+     * 'S'
      */
     private void cargarDatosComboBoxs() {
         ResultSet respuestaSelect;
@@ -82,7 +83,7 @@ public class Ventana extends javax.swing.JFrame {
             respuestaSelect = connection.select("cod_familia, descripcion",
                     "\"schinventario\".familia_articulo", "activo = 'S'");
             while (respuestaSelect.next()) {
-                cmbFamilias.addItem(respuestaSelect.getString(1) + " - " + respuestaSelect.getString(2));
+                cmbFamilias.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
             }
 
             // Se cargan los valores para cmbMarcas
@@ -90,7 +91,7 @@ public class Ventana extends javax.swing.JFrame {
             respuestaSelect = connection.select("cod_marca, descripcion",
                     "\"schinventario\".marca_articulo", "activo = 'S'");
             while (respuestaSelect.next()) {
-                cmbMarcas.addItem(respuestaSelect.getString(1) + " - " + respuestaSelect.getString(2));
+                cmbMarcas.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
             }
 
             // Se cargan los valores para cmbImpuestos
@@ -98,7 +99,7 @@ public class Ventana extends javax.swing.JFrame {
             respuestaSelect = connection.select("cod_impuesto, descripcion",
                     "\"schinventario\".impuesto", "activo = 'S'");
             while (respuestaSelect.next()) {
-                cmbImpuestos.addItem(respuestaSelect.getString(1) + " - " + respuestaSelect.getString(2));
+                cmbImpuestos.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
             }
 
         } catch (SQLException ex) {
@@ -409,61 +410,154 @@ public class Ventana extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void Btn_InsertarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_InsertarActionPerformed
-        int filaSeleccionada = tbl_Tabla.getSelectedRow();
-        if (filaSeleccionada + 1 == modeloActual.getRowCount()) {
-            String tabla = "\"schinventario\".";
-            String datos = "";
+        String campos = "";
+        String tabla = "\"schinventario\".";
+        int filaInsercion = tbl_Tabla.getRowCount() - 1;
+        /*
+        
+         Aqui deberia de restaurarse la informacion de la fila anterior. Pudo no ser la de insercion la
+         que se estaba modificando
+        
+         */
+        tbl_Tabla.getSelectionModel().setSelectionInterval(filaInsercion, filaInsercion);
 
-            if (modeloActual == modeloFamilia) {
-                tabla += "familia_articulo";
-                datos = "'" + tbl_Tabla.getValueAt(filaSeleccionada, 0) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 1) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 2) + "'";
+        if (modeloActual == modeloFamilia) {
+            tabla += "familia_articulo";
+            // Obtiene el valor de los campos que se van a insertar en la BD
+            String codigo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
+            String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
+            Object valCheckActivo = tbl_Tabla.getValueAt(filaInsercion, 2);
+            String activo = (valCheckActivo == null || !(boolean) valCheckActivo) ? "N" : "S";
 
-            } else if (modeloActual == modeloMarca) {
-                tabla += "marca_articulo";
-                datos = "'" + tbl_Tabla.getValueAt(filaSeleccionada, 0) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 1) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 2) + "'";
-
-            } else if (modeloActual == modeloArticulo) {
-                tabla += "articulo";
-                datos = "'" + tbl_Tabla.getValueAt(filaSeleccionada, 0) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 1) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 2) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 3) + "', "
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 4) + ", '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 5) + "', "
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 6) + ", '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 7) + "'";
-
-            } else if (modeloActual == modeloImpuesto) {
-                tabla += "impuesto";
-                datos = "'" + tbl_Tabla.getValueAt(filaSeleccionada, 0) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 1) + "', "
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 2) + ", '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 3) + "'";
-
-            } else if (modeloActual == modeloTipoDeMovimiento) {
-                tabla += "tipo_movimiento";
-                datos = "'" + tbl_Tabla.getValueAt(filaSeleccionada, 0) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 1) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 2) + "', '"
-                        + tbl_Tabla.getValueAt(filaSeleccionada, 3) + "'";
-            }
-
-            if (connection.insert(tabla, datos)) {
-                System.out.println("Inserción exitosa");
-                modeloActual.setNumRows(modeloActual.getRowCount() + 1);
+            // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
+            if (codigo == null || descripcion == null || codigo.equals("") || descripcion.equals("")) {
+                JOptionPane.showMessageDialog(this, "No es posible insertar una nueva familia si hay campos sin información");
+                return;
             } else {
-                JOptionPane.showMessageDialog(this, "Ha ocurrido un error en la inserción");
-                modeloActual.setRowCount(0);
-                getDatosFromDataBase();
+                campos = "'" + codigo + "', '" + descripcion + "', '" + activo + "'";
+//////                System.out.println(campos);
             }
-        } else if (filaSeleccionada == -1) {
-            JOptionPane.showMessageDialog(this, "No ha seleccionado la fila para insertar datos");
+
+        } else if (modeloActual == modeloMarca) {
+            tabla += "marca_articulo";
+            // Obtiene el valor de los campos que se van a insertar en la BD
+            String codigo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
+            String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
+            Object valCheckActivo = tbl_Tabla.getValueAt(filaInsercion, 2);
+            String activo = (valCheckActivo == null || !(boolean) valCheckActivo) ? "N" : "S";
+
+            // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
+            if (codigo == null || descripcion == null || codigo.equals("") || descripcion.equals("")) {
+                JOptionPane.showMessageDialog(this, "No es posible insertar una nueva marca si hay campos sin información");
+                return;
+            } else {
+                campos = "'" + codigo + "', '" + descripcion + "', '" + activo + "'";
+//////                System.out.println(campos);
+            }
+
+        } else if (modeloActual == modeloImpuesto) {
+            tabla += "impuesto";
+            // Obtiene el valor de los campos que se van a insertar en la BD
+            String codigo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
+            String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
+            Double porcentaje = (Double) tbl_Tabla.getValueAt(filaInsercion, 2);
+            Object valCheckActivo = tbl_Tabla.getValueAt(filaInsercion, 3);
+            String activo = (valCheckActivo == null || !(boolean) valCheckActivo) ? "N" : "S";
+
+            // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
+            if (codigo == null || descripcion == null || porcentaje == null || codigo.equals("") || descripcion.equals("")) {
+                JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo impuesto si hay campos sin información");
+                return;
+            } else {
+                campos = "'" + codigo + "', '" + descripcion + "', " + porcentaje + ", '" + activo + "'";
+//////                System.out.println(campos);
+            }
+
+        } else if (modeloActual == modeloTipoDeMovimiento) {
+            tabla += "tipo_movimiento";
+            // Obtiene el valor de los campos que se van a insertar en la BD
+            String tipo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
+            String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
+            String operacion = (String) tbl_Tabla.getValueAt(filaInsercion, 2);
+            Object valCheckActivo = tbl_Tabla.getValueAt(filaInsercion, 3);
+            String activo = (valCheckActivo == null || !(boolean) valCheckActivo) ? "N" : "S";
+
+            // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
+            if (tipo == null || descripcion == null || operacion == null || tipo.equals("") || descripcion.equals("")) {
+                JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo tipo de movimiento, si hay campos sin información");
+                return;
+            } else {
+                // Obtiene el valor correspondiente al tipo de operacion para insertar en la BD
+                if (operacion.equals("Resta")) {
+                    operacion = "-1";
+                } else if (operacion.equals("No aplica")) {
+                    operacion = "0";
+                } else {
+                    operacion = "1";
+                }
+                campos = "'" + tipo + "', '" + descripcion + "', '" + operacion + "', '" + activo + "'";
+//////                System.out.println(campos);
+            }
+
+        } else if (modeloActual == modeloArticulo) {
+            tabla += "articulo";
+            // Obtiene el valor de los campos que se van a insertar en la BD
+            String codigo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
+            String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
+            String familia = (String) tbl_Tabla.getValueAt(filaInsercion, 2);
+            String marca = (String) tbl_Tabla.getValueAt(filaInsercion, 3);
+            Double precioSinImp = (Double) tbl_Tabla.getValueAt(filaInsercion, 4);
+            String impuesto = (String) tbl_Tabla.getValueAt(filaInsercion, 5);
+            Double utilidad = (Double) tbl_Tabla.getValueAt(filaInsercion, 6);
+            Object valCheckActivo = tbl_Tabla.getValueAt(filaInsercion, 8);
+            String activo = (valCheckActivo == null || !(boolean) valCheckActivo) ? "N" : "S";
+
+            // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
+            if (codigo == null || codigo.equals("") || descripcion == null || descripcion.equals("") || familia == null
+                    || marca == null || precioSinImp == null || impuesto == null || utilidad == null) {
+                JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo artículo si hay campos sin información");
+                return;
+            } else {
+                // Obtiene los codigos de FK familia, marca e impuesto
+                String separador = " = ";
+                familia = familia.substring(0, familia.indexOf(separador));
+                marca = marca.substring(0, marca.indexOf(separador));
+                impuesto = impuesto.substring(0, impuesto.indexOf(separador));
+                // Se hace un select para obtener el porcentaje de impuesto
+                ResultSet resSelect;
+                try {
+                    resSelect = connection.select("porcentaje", "\"schinventario\".impuesto", "cod_impuesto = '" + impuesto + "'");
+                    resSelect.next();
+                    Double valorImp;
+                    valorImp = resSelect.getDouble(1);
+                    // Se calcula el costo del articulo con impuestos
+                    Double costo = precioSinImp * ((valorImp / 100) + 1) * ((utilidad / 100) + 1);
+                    // Se coloca el costo del articulo en la tabla
+                    tbl_Tabla.setValueAt(costo, filaInsercion, 7);
+                    // Se almacenan todos los campos que se van a insertar en un String
+                    campos = "'" + codigo + "', '" + familia + "', '" + marca + "', '" + descripcion + "', "
+                            + precioSinImp + ", '" + impuesto + "', " + costo + ", '" + activo + "', " + utilidad;
+//////                    System.out.println(campos);
+                } catch (SQLException ex) {
+                    Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+                    JOptionPane.showMessageDialog(this, "Ha ocurrido un error al intentar obtener el impuesto");
+                    return;
+                }
+            }
+        }
+
+        if (connection.insert(tabla, campos)) {
+            System.out.println("Inserción exitosa");
+
+//////            numFilaAnterior = -1;
+//////            datosFilaActual = null;
+//////            pkSelectedRow = null;
+//////            tbl_Tabla.clearSelection();
+            modeloActual.setNumRows(modeloActual.getRowCount() + 1);
         } else {
-            JOptionPane.showMessageDialog(this, "Solo puede agregar una tupla en la última fila de la tabla");
+            JOptionPane.showMessageDialog(this, "Ha ocurrido un error en la inserción");
+            modeloActual.setRowCount(0);
+            getDatosFromDataBase();
         }
     }//GEN-LAST:event_Btn_InsertarActionPerformed
 
@@ -632,7 +726,8 @@ public class Ventana extends javax.swing.JFrame {
     /**
      * Metodo utilizado para salvar y restaurar los valores de las filas que no
      * fueron procesados luego de presionar clic sobre otra fila
-     * @param evt 
+     *
+     * @param evt
      */
     private void tbl_TablaMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tbl_TablaMousePressed
         // Obtiene el indice de la fila que se encuentra seleccionada
@@ -749,7 +844,8 @@ public class Ventana extends javax.swing.JFrame {
     /**
      * Metodo que restaura los valores de la ultima fila seleccionada y que no
      * fueron procesados, antes de seleccionar otra tabla
-     * @param evt 
+     *
+     * @param evt
      */
     private void Cmb_TablasFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_Cmb_TablasFocusGained
         if (numFilaAnterior != -1 && numFilaAnterior != tbl_Tabla.getRowCount() - 1) {
