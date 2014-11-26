@@ -43,7 +43,8 @@ public class Ventana extends javax.swing.JFrame {
     private JComboBox<String> cmbMarcas;
     private JComboBox<String> cmbImpuestos;
     private JComboBox<String> cmbArticulos;
-    private JComboBox<String> cmbTipoDeMovimientos;
+    private JComboBox<String> cmbOperacionMovimiento;
+    private JComboBox<String> cmbTipoDeMovimiento;   
 
     private int selectedRowTomaMovimiento = -1;
     private int selectedRowDetalleTomaMov = -1;
@@ -96,8 +97,16 @@ public class Ventana extends javax.swing.JFrame {
         try {
             // Se cargan los valores para tipoDeMovimiento
             String[] movimientos = {"Resta", "No aplica", "Suma"};
-            cmbTipoDeMovimientos = new JComboBox<>(movimientos);
+            cmbOperacionMovimiento = new JComboBox<>(movimientos);
 
+            // Se cargan los valores para cmbFamilias
+            cmbTipoDeMovimiento = new JComboBox<>();
+            respuestaSelect = connection.select("tipo_movimiento, descripcion",
+                    "\"schinventario\".tipo_movimiento", "activo = 'S'");
+            while (respuestaSelect.next()) {
+                cmbTipoDeMovimiento.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
+            }
+            
             // Se cargan los valores para cmbFamilias
             cmbFamilias = new JComboBox<>();
             respuestaSelect = connection.select("cod_familia, descripcion",
@@ -223,7 +232,12 @@ public class Ventana extends javax.swing.JFrame {
 
             @Override
             public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit[columnIndex];
+                int posLastRow = tbl_tomaMovimiento.getRowCount() - 1;
+                if (rowIndex < posLastRow && posLastRow > 0) {
+                    return false;
+                } else {
+                    return canEdit[columnIndex];
+                }
             }
 
             @Override
@@ -244,7 +258,12 @@ public class Ventana extends javax.swing.JFrame {
 
             @Override
             public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit[columnIndex];
+                int posLastRow = tbl_tomaMovimiento.getRowCount() - 1;
+                if (rowIndex < posLastRow && posLastRow > 0) {
+                    return false;
+                } else {
+                    return canEdit[columnIndex];
+                }
             }
 
             @Override
@@ -266,7 +285,12 @@ public class Ventana extends javax.swing.JFrame {
 
             @Override
             public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit[columnIndex];
+                int posLastRow = tbl_detalleTomaMovimiento.getRowCount() - 1;
+                if (rowIndex < posLastRow && posLastRow > 0) {
+                    return false;
+                } else {
+                    return canEdit[columnIndex];
+                }
             }
 
             @Override
@@ -287,7 +311,12 @@ public class Ventana extends javax.swing.JFrame {
 
             @Override
             public boolean isCellEditable(int rowIndex, int columnIndex) {
-                return canEdit[columnIndex];
+                int posLastRow = tbl_detalleTomaMovimiento.getRowCount() - 1;
+                if (rowIndex < posLastRow && posLastRow > 0) {
+                    return false;
+                } else {
+                    return canEdit[columnIndex];
+                }
             }
 
             @Override
@@ -341,7 +370,7 @@ public class Ventana extends javax.swing.JFrame {
                         Double existFisica = resultSet.getDouble(5);
                         Double costoUnitario = resultSet.getDouble(6);
                         Object[] data = {numeroLinea, articulo, existTeorica, existFisica, costoUnitario};
-                        modeloDetalleTomaFisica.addRow(data);
+                        ((DefaultTableModel) tbl_detalleTomaMovimiento.getModel()).addRow(data);
                     }
                     modeloDetalleTomaFisica.setRowCount(modeloDetalleTomaFisica.getRowCount() + 1);
                 } else {
@@ -364,7 +393,7 @@ public class Ventana extends javax.swing.JFrame {
                         Double existenciaPrevia = resultSet.getDouble(7);
                         Double costo = resultSet.getDouble(8);
                         Object[] data = {numeroLinea, articulo, existenciaPrevia, costo, tipoMovimiento, cantidad, saldoGeneral};
-                        modeloDetalleTomaFisica.addRow(data);
+                        ((DefaultTableModel) tbl_detalleTomaMovimiento.getModel()).addRow(data);
                     }
                     modeloDetalleMovimientoInventario.setRowCount(modeloDetalleMovimientoInventario.getRowCount() + 1);
                 }
@@ -711,6 +740,11 @@ public class Ventana extends javax.swing.JFrame {
         Btn_aplicar.setText("Aplicar");
 
         Btn_Salvar.setText("Salvar");
+        Btn_Salvar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                Btn_SalvarActionPerformed(evt);
+            }
+        });
 
         Btn_CrearDetalle.setText("Crear Detalle");
         Btn_CrearDetalle.addActionListener(new java.awt.event.ActionListener() {
@@ -990,7 +1024,7 @@ public class Ventana extends javax.swing.JFrame {
             } else if (modeloActualMantenimiento == modeloArticulo && (boolean) tbl_Tabla.getValueAt(filaInsercion, 8)) {
                 cmbArticulos.addItem(codigo + " = " + descripcion);
             } else if (modeloActualMantenimiento == modeloTipoDeMovimiento && (boolean) tbl_Tabla.getValueAt(filaInsercion, 3)) {
-                cmbTipoDeMovimientos.addItem(codigo + " = " + descripcion);
+                cmbTipoDeMovimiento.addItem(codigo + " = " + descripcion);
             }
             // Agrega una nueva fila a la tabla
             modeloActualMantenimiento.setNumRows(modeloActualMantenimiento.getRowCount() + 1);
@@ -1055,7 +1089,7 @@ public class Ventana extends javax.swing.JFrame {
                 } else if (modeloActualMantenimiento == modeloArticulo && activo) {
                     cmbArticulos.removeItem(codigo + " = " + descripcion);
                 } else if (modeloActualMantenimiento == modeloTipoDeMovimiento && activo) {
-                    cmbTipoDeMovimientos.removeItem(codigo + " = " + descripcion);
+                    cmbTipoDeMovimiento.removeItem(codigo + " = " + descripcion);
                 }
                 // Se eliminan los datos de la ultima seleccion
                 numFilaAnterior = -1;
@@ -1436,7 +1470,7 @@ public class Ventana extends javax.swing.JFrame {
             tbl_Tabla.setModel(modeloTipoDeMovimiento);
             modeloActualMantenimiento = modeloTipoDeMovimiento;
             // Carga el ComboBox con los datos "Suma, Resta, No aplica", para el campo "tipo de operacion" 
-            tbl_Tabla.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(cmbTipoDeMovimientos));
+            tbl_Tabla.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(cmbOperacionMovimiento));
             Lbl_Titulo.setText("Tabla Tipo de Movimiento de Inventario");
         }
     }//GEN-LAST:event_Cmb_TablasActionPerformed
@@ -1616,7 +1650,7 @@ public class Ventana extends javax.swing.JFrame {
             tbl_detalleTomaMovimiento.setModel(modeloDetalleMovimientoInventario);
             // Establece el comboBox para los articulos y para el movimiento de inventario
             tbl_detalleTomaMovimiento.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(cmbArticulos));
-            tbl_detalleTomaMovimiento.getColumnModel().getColumn(4).setCellEditor(new DefaultCellEditor(cmbTipoDeMovimientos));
+            tbl_detalleTomaMovimiento.getColumnModel().getColumn(4).setCellEditor(new DefaultCellEditor(cmbTipoDeMovimiento));
             // Cambia el comportamiento de los radioButtons
             Rdb_movimientoInventario.setEnabled(false);
             Rdb_tomaFisica.setEnabled(true);
@@ -1786,8 +1820,10 @@ public class Ventana extends javax.swing.JFrame {
     }//GEN-LAST:event_tbl_detalleTomaMovimientoMouseClicked
 
     /**
-     * Metodo utilizado para crear un nuevo detalle de toma fisica o movimiento de inventario
-     * @param evt 
+     * Metodo utilizado para crear un nuevo detalle de toma fisica o movimiento
+     * de inventario
+     *
+     * @param evt
      */
     private void Btn_CrearDetalleActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_CrearDetalleActionPerformed
         int ultimaFila = tbl_detalleTomaMovimiento.getRowCount() - 1;
@@ -1810,16 +1846,22 @@ public class Ventana extends javax.swing.JFrame {
                     tbl_detalleTomaMovimiento.setValueAt(costo, ultimaFila, 3);
                     tbl_detalleTomaMovimiento.setValueAt(existenciaPrevia, ultimaFila, 2);
                     // Se calcula el saldo general
-                    Double saldoGeneral = costo*cantidad;
-                    if(tipoMovimiento.equals("Resta")){
+                    Double saldoGeneral = costo * cantidad;
+                    // Hago un select para el tipo de movimiento, para ver que operacion lleva
+                    String codTipoMovimiento = tipoMovimiento.substring(0, tipoMovimiento.indexOf(" = "));
+                    select = connection.select("tipo_operacion", "\"schinventario\".tipo_movimiento", 
+                            "tipo_movimiento = '" + codTipoMovimiento + "'");
+                    select.next();
+                    String tipoOperacion = select.getString(1);
+                    if (tipoOperacion.equals("-1")) {
                         saldoGeneral *= -1;
-                    }else if(tipoMovimiento.equals("No aplica")){
+                    } else if (tipoOperacion.equals("0")) {
                         saldoGeneral = 0.0;
                     }
                     tbl_detalleTomaMovimiento.setValueAt(saldoGeneral, ultimaFila, 6);
                     // se agrega una nueva fila
                     modeloDetalleMovimientoInventario.setRowCount(tbl_detalleTomaMovimiento.getRowCount() + 1);
-                    tbl_detalleTomaMovimiento.clearSelection();                    
+                    tbl_detalleTomaMovimiento.clearSelection();
                 } catch (SQLException ex) {
                     Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1845,7 +1887,7 @@ public class Ventana extends javax.swing.JFrame {
                     tbl_detalleTomaMovimiento.setValueAt(existenciaPrevia, ultimaFila, 2);
                     // se agrega una nueva fila
                     modeloDetalleTomaFisica.setRowCount(tbl_detalleTomaMovimiento.getRowCount() + 1);
-                    tbl_detalleTomaMovimiento.clearSelection();                    
+                    tbl_detalleTomaMovimiento.clearSelection();
                 } catch (SQLException ex) {
                     Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -1854,6 +1896,80 @@ public class Ventana extends javax.swing.JFrame {
             }
         }
     }//GEN-LAST:event_Btn_CrearDetalleActionPerformed
+
+    private void Btn_SalvarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_SalvarActionPerformed
+        String tabla = "\"schinventario\".";
+        String campos;
+        // Verifico donde deben guardar los datos
+        if (Rdb_movimientoInventario.isSelected()) {
+            tabla += "detalle_movimiento_inventario";
+            // Obtiene el numero de documento donde se desea insertar los datos de detalle
+            int numDocumento = (int) tbl_tomaMovimiento.getValueAt(tbl_tomaMovimiento.getSelectedRow(), 0);
+            // Se recorre la tabla, de abajo hacia arriba, en busca de los campos que debo insertar
+            for (int i = tbl_detalleTomaMovimiento.getRowCount() - 2; i >= 0; i--) {
+                try {
+                    // Se obtiene los valores del PK
+                    int numLinea = (int) tbl_detalleTomaMovimiento.getValueAt(i, 0);
+                    String articulo = (String) tbl_detalleTomaMovimiento.getValueAt(i, 1);
+                    String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
+                    // Se realiza un select para ver si el registro existe en la BD o se debe insertar
+                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento +
+                            " and num_linea = " + numLinea + " and cod_articulo = '" + codArticulo + "'");
+                    // Verifica si existe o no ese registro. Si existe ya todos los anteriores existen, por lo tanto sale del for
+                    if(!select.next()){
+                        // Obtiene los campos faltantes
+                        Double existenciaPrevia = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 2);
+                        Double costo = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 3);
+                        String tipoMovimiento = (String) tbl_detalleTomaMovimiento.getValueAt(i, 4);
+                        String codTipoMovimiento = tipoMovimiento.substring(0, tipoMovimiento.indexOf(" = "));
+                        Double cantidad = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 5);
+                        Double saldoGeneral = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 6);
+                        // Prepara los campos para la insercion en la tabla detalle movimiento inventario
+                        campos = numDocumento + ", " + numLinea + ", '" + codArticulo + "', '" + codTipoMovimiento
+                            + "', " + cantidad + ", " + saldoGeneral + ", " + existenciaPrevia + ", " + costo;
+                        // INSERTA LOS DATOS                        
+                        connection.insert(tabla, campos);
+                    }else{
+                        return;
+                    }
+                } catch (SQLException ex) {
+                    Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        } else {
+            tabla += "detalle_toma_fisica";
+            // Obtiene el numero de documento donde se desea insertar los datos de detalle
+            int numDocumento = (int) tbl_tomaMovimiento.getValueAt(tbl_tomaMovimiento.getSelectedRow(), 0);
+            // Se recorre la tabla, de abajo hacia arriba, en busca de los campos que debo insertar
+            for (int i = tbl_detalleTomaMovimiento.getRowCount() - 2; i >= 0; i--) {
+                try {
+                    // Se obtiene los valores del PK
+                    int numLinea = (int) tbl_detalleTomaMovimiento.getValueAt(i, 0);
+                    String articulo = (String) tbl_detalleTomaMovimiento.getValueAt(i, 1);
+                    String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
+                    // Se realiza un select para ver si el registro existe en la BD o se debe insertar
+                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento +
+                            " and cod_articulo = '" + codArticulo + "'");
+                    // Verifica si existe o no ese registro. Si existe ya todos los anteriores existen, por lo tanto sale del for
+                    if(!select.next()){
+                        // Obtiene los campos faltantes
+                        Double existenciaTeorica = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 2);
+                        Double existenciaFisica = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 3);
+                        Double costoUnitario = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 4);
+                        // Prepara los campos para la insercion en la tabla detalle toma fisica
+                        campos = numDocumento + ", " + numLinea + ", '" + codArticulo + "', " + existenciaTeorica
+                            + ", " + existenciaFisica + ", " + costoUnitario;
+                        // INSERTA LOS DATOS                        
+                        connection.insert(tabla, campos);
+                    }else{
+                        return;
+                    }
+                } catch (SQLException ex) {
+                    Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }//GEN-LAST:event_Btn_SalvarActionPerformed
 
     /**
      * @param args the command line arguments
