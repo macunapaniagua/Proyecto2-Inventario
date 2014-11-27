@@ -351,11 +351,17 @@
               <Properties>
                 <Property name="text" type="java.lang.String" value="Anular"/>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="Btn_AnularActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="Btn_aplicar">
               <Properties>
                 <Property name="text" type="java.lang.String" value="Aplicar"/>
               </Properties>
+              <Events>
+                <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="Btn_aplicarActionPerformed"/>
+              </Events>
             </Component>
             <Component class="javax.swing.JButton" name="Btn_Salvar">
               <Properties>

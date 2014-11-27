@@ -60,6 +60,34 @@ public class Conexion {
         }
         return rs;
     }
+    
+    /**
+     * Metodo utilizado para seleccionar datos de una tabla
+     * @param pCampos campos que deseo visualizar
+     * @param pTabla tabla donde voy a obtener la informacion
+     * @param pCondicion condicion para realizar una busqueda especifica
+     * @param campoOrder criterio por el que se va a ordenar el select
+     * @return ResulSet con la informacion de todas las tuplas que cumplen el 
+     * criterio de busqueda dado
+     */
+    public ResultSet selectOrder(String pCampos, String pTabla, String pCondicion, String campoOrder) {
+        ResultSet rs = null; //obtener los datos del select
+        Statement s;        // se utiliza para inicializar la conexión
+        String sentencia;
+        try {
+            s = this.conn.createStatement();
+            sentencia = " SELECT " + pCampos + " FROM " + pTabla; // se crea el select
+            if (!pCondicion.isEmpty()) {
+                sentencia += " WHERE " + pCondicion;
+            }if(!campoOrder.isEmpty()){
+                sentencia += " ORDER BY " + campoOrder + " ASC";
+            }
+            rs = s.executeQuery(sentencia); // 
+        } catch (Exception e) {
+            System.out.printf("Error: " + e.toString());
+        }
+        return rs;
+    }
 
     /**
      * Metodos utilizados para insertar una tupla a una tabla

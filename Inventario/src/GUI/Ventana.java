@@ -44,7 +44,7 @@ public class Ventana extends javax.swing.JFrame {
     private JComboBox<String> cmbImpuestos;
     private JComboBox<String> cmbArticulos;
     private JComboBox<String> cmbOperacionMovimiento;
-    private JComboBox<String> cmbTipoDeMovimiento;   
+    private JComboBox<String> cmbTipoDeMovimiento;
 
     private int selectedRowTomaMovimiento = -1;
     private int selectedRowDetalleTomaMov = -1;
@@ -106,7 +106,7 @@ public class Ventana extends javax.swing.JFrame {
             while (respuestaSelect.next()) {
                 cmbTipoDeMovimiento.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
             }
-            
+
             // Se cargan los valores para cmbFamilias
             cmbFamilias = new JComboBox<>();
             respuestaSelect = connection.select("cod_familia, descripcion",
@@ -357,8 +357,8 @@ public class Ventana extends javax.swing.JFrame {
             if (esDetalle) {
                 int numDocumento = (int) tbl_tomaMovimiento.getValueAt(selectedRowTomaMovimiento, 0);
                 if (Rdb_tomaFisica.isSelected()) {
-                    resultSet = connection.select("*", "\"schinventario\".detalle_toma_fisica",
-                            "num_documento = " + numDocumento);
+                    resultSet = connection.selectOrder("*", "\"schinventario\".detalle_toma_fisica",
+                            "num_documento = " + numDocumento, "num_linea");
                     while (resultSet.next()) {
                         int numeroLinea = resultSet.getInt(2);
                         // Se hace otro select para obtener la descripcion del articulo
@@ -374,8 +374,8 @@ public class Ventana extends javax.swing.JFrame {
                     }
                     modeloDetalleTomaFisica.setRowCount(modeloDetalleTomaFisica.getRowCount() + 1);
                 } else {
-                    resultSet = connection.select("*", "\"schinventario\".detalle_movimiento_inventario",
-                            "num_documento = " + numDocumento);
+                    resultSet = connection.selectOrder("*", "\"schinventario\".detalle_movimiento_inventario",
+                            "num_documento = " + numDocumento, "num_linea");
                     while (resultSet.next()) {
                         int numeroLinea = resultSet.getInt(2);
                         // Busco la descripcion del articulo de acuerdo al codigo
@@ -400,7 +400,7 @@ public class Ventana extends javax.swing.JFrame {
             } else {
                 // Verifica si se debe cargar Toma Fisica(true) o Movimiento de inventario(false)
                 if (Rdb_tomaFisica.isSelected()) {
-                    resultSet = connection.select("*", "\"schinventario\".toma_fisica", "");
+                    resultSet = connection.selectOrder("*", "\"schinventario\".toma_fisica", "", "num_documento");
                     while (resultSet.next()) {
                         int numeroDocumento = resultSet.getInt(1);
                         String fecha = new SimpleDateFormat("dd/MM/yyyy").format(resultSet.getDate(2));
@@ -413,7 +413,7 @@ public class Ventana extends javax.swing.JFrame {
                     }
                     modeloTomaFisica.setRowCount(modeloTomaFisica.getRowCount() + 1);
                 } else {
-                    resultSet = connection.select("*", "\"schinventario\".movimiento_inventario", "");
+                    resultSet = connection.selectOrder("*", "\"schinventario\".movimiento_inventario", "", "num_documento");
                     while (resultSet.next()) {
                         int numeroDocumento = resultSet.getInt(1);
                         String fecha = new SimpleDateFormat("dd/MM/yyyy").format(resultSet.getDate(2));
@@ -736,8 +736,18 @@ public class Ventana extends javax.swing.JFrame {
         });
 
         Btn_Anular.setText("Anular");
+        Btn_Anular.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                Btn_AnularActionPerformed(evt);
+            }
+        });
 
         Btn_aplicar.setText("Aplicar");
+        Btn_aplicar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                Btn_aplicarActionPerformed(evt);
+            }
+        });
 
         Btn_Salvar.setText("Salvar");
         Btn_Salvar.addActionListener(new java.awt.event.ActionListener() {
@@ -1820,6 +1830,22 @@ public class Ventana extends javax.swing.JFrame {
     }//GEN-LAST:event_tbl_detalleTomaMovimientoMouseClicked
 
     /**
+     * Metodo utilizado para verificar si un articulo ya fue incluido en la
+     * tabla detalle de toma fisica
+     *
+     * @param pArticulo articulo que se va a buscar
+     * @return
+     */
+    private boolean articuloYaDetallado(String pArticulo) {
+        for (int i = 0; i < tbl_detalleTomaMovimiento.getRowCount() - 1; i++) {
+            if (tbl_detalleTomaMovimiento.getValueAt(i, 1).equals(pArticulo)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Metodo utilizado para crear un nuevo detalle de toma fisica o movimiento
      * de inventario
      *
@@ -1834,6 +1860,12 @@ public class Ventana extends javax.swing.JFrame {
             Double cantidad = (Double) tbl_detalleTomaMovimiento.getValueAt(ultimaFila, 5);
             // Verifica que no se hayan dejado campos sin valor
             if (numLinea != null && articulo != null && tipoMovimiento != null && cantidad != null) {
+                // Verifica que no se cree un detalle cuando ya fue aplicado el movimiento de inventario
+                if ((boolean) tbl_tomaMovimiento.getValueAt(tbl_tomaMovimiento.getSelectedRow(), 3)) {
+                    JOptionPane.showMessageDialog(this, "No es posible crear un nuevo detalle, debido a que "
+                            + "el movimiento de inventario ya fué aplicado");
+                    return;
+                }
                 try {
                     // Obtiene el codigo del articulo y hace un select de este para tener la existencia y el costo
                     String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
@@ -1849,7 +1881,7 @@ public class Ventana extends javax.swing.JFrame {
                     Double saldoGeneral = costo * cantidad;
                     // Hago un select para el tipo de movimiento, para ver que operacion lleva
                     String codTipoMovimiento = tipoMovimiento.substring(0, tipoMovimiento.indexOf(" = "));
-                    select = connection.select("tipo_operacion", "\"schinventario\".tipo_movimiento", 
+                    select = connection.select("tipo_operacion", "\"schinventario\".tipo_movimiento",
                             "tipo_movimiento = '" + codTipoMovimiento + "'");
                     select.next();
                     String tipoOperacion = select.getString(1);
@@ -1869,11 +1901,22 @@ public class Ventana extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "No es posible crear un nuevo detalle. Información faltante");
             }
         } else {
-            Object numLinea = tbl_detalleTomaMovimiento.getValueAt(ultimaFila, 0);
             String articulo = (String) tbl_detalleTomaMovimiento.getValueAt(ultimaFila, 1);
+            Object numLinea = tbl_detalleTomaMovimiento.getValueAt(ultimaFila, 0);
             Double existenciaFisica = (Double) tbl_detalleTomaMovimiento.getValueAt(ultimaFila, 3);
             // Verifica que no se hayan dejado campos sin valor
             if (numLinea != null && articulo != null && existenciaFisica != null) {
+                // Verifica que no se cree un detalle cuando ya fue aplicada la toma fisica
+                if ((boolean) tbl_tomaMovimiento.getValueAt(tbl_tomaMovimiento.getSelectedRow(), 3)) {
+                    JOptionPane.showMessageDialog(this, "No es posible crear un nuevo detalle, debido a que "
+                            + "la toma física seleccionada ya fué aplicada");
+                    return;
+                }
+                // Verifica si el articulo ya esta creado en un detalle de esta toma fisica
+                if (articuloYaDetallado(articulo)) {
+                    JOptionPane.showMessageDialog(this, "El artículo ya esta incluido en un detalle de esta toma física");
+                    return;
+                }
                 try {
                     // Obtiene el codigo del articulo y hace un select de este para tener la existencia y el costo
                     String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
@@ -1897,6 +1940,12 @@ public class Ventana extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_Btn_CrearDetalleActionPerformed
 
+    /**
+     * Metodo utilizado para salvar un movimiento de inventario o una toma
+     * fisica
+     *
+     * @param evt
+     */
     private void Btn_SalvarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_SalvarActionPerformed
         String tabla = "\"schinventario\".";
         String campos;
@@ -1913,10 +1962,10 @@ public class Ventana extends javax.swing.JFrame {
                     String articulo = (String) tbl_detalleTomaMovimiento.getValueAt(i, 1);
                     String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
                     // Se realiza un select para ver si el registro existe en la BD o se debe insertar
-                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento +
-                            " and num_linea = " + numLinea + " and cod_articulo = '" + codArticulo + "'");
+                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento
+                            + " and num_linea = " + numLinea + " and cod_articulo = '" + codArticulo + "'");
                     // Verifica si existe o no ese registro. Si existe ya todos los anteriores existen, por lo tanto sale del for
-                    if(!select.next()){
+                    if (!select.next()) {
                         // Obtiene los campos faltantes
                         Double existenciaPrevia = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 2);
                         Double costo = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 3);
@@ -1926,10 +1975,10 @@ public class Ventana extends javax.swing.JFrame {
                         Double saldoGeneral = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 6);
                         // Prepara los campos para la insercion en la tabla detalle movimiento inventario
                         campos = numDocumento + ", " + numLinea + ", '" + codArticulo + "', '" + codTipoMovimiento
-                            + "', " + cantidad + ", " + saldoGeneral + ", " + existenciaPrevia + ", " + costo;
+                                + "', " + cantidad + ", " + saldoGeneral + ", " + existenciaPrevia + ", " + costo;
                         // INSERTA LOS DATOS                        
                         connection.insert(tabla, campos);
-                    }else{
+                    } else {
                         return;
                     }
                 } catch (SQLException ex) {
@@ -1948,20 +1997,20 @@ public class Ventana extends javax.swing.JFrame {
                     String articulo = (String) tbl_detalleTomaMovimiento.getValueAt(i, 1);
                     String codArticulo = articulo.substring(0, articulo.indexOf(" = "));
                     // Se realiza un select para ver si el registro existe en la BD o se debe insertar
-                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento +
-                            " and cod_articulo = '" + codArticulo + "'");
+                    ResultSet select = connection.select("num_documento", tabla, "num_documento = " + numDocumento
+                            + " and cod_articulo = '" + codArticulo + "'");
                     // Verifica si existe o no ese registro. Si existe ya todos los anteriores existen, por lo tanto sale del for
-                    if(!select.next()){
+                    if (!select.next()) {
                         // Obtiene los campos faltantes
                         Double existenciaTeorica = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 2);
                         Double existenciaFisica = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 3);
                         Double costoUnitario = (Double) tbl_detalleTomaMovimiento.getValueAt(i, 4);
                         // Prepara los campos para la insercion en la tabla detalle toma fisica
                         campos = numDocumento + ", " + numLinea + ", '" + codArticulo + "', " + existenciaTeorica
-                            + ", " + existenciaFisica + ", " + costoUnitario;
+                                + ", " + existenciaFisica + ", " + costoUnitario;
                         // INSERTA LOS DATOS                        
                         connection.insert(tabla, campos);
-                    }else{
+                    } else {
                         return;
                     }
                 } catch (SQLException ex) {
@@ -1970,6 +2019,165 @@ public class Ventana extends javax.swing.JFrame {
             }
         }
     }//GEN-LAST:event_Btn_SalvarActionPerformed
+
+    /**
+     * Metodo utilizado para aplicar un movimiento de inventario o una toma
+     * fisica
+     *
+     * @param evt
+     */
+    private void Btn_aplicarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_aplicarActionPerformed
+        int filaSeleccionada = tbl_tomaMovimiento.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "No ha seleccionado una fila para aplicar los detalles");
+        } else if (filaSeleccionada == tbl_tomaMovimiento.getRowCount() - 1) {
+            JOptionPane.showMessageDialog(this, "No se puede aplicar los detalles sobre la última fila, ya que"
+                    + " esta no ha sido creada");
+        } else if ((boolean) tbl_tomaMovimiento.getValueAt(filaSeleccionada, 3)) {
+            JOptionPane.showMessageDialog(this, "El elemento seleccionado ya ha sido aplicado");
+        } else {
+            try {
+                String tabla = "\"schinventario\".";
+                // Obtengo el numero de documento seleccionado
+                int numDocumento = (int) tbl_tomaMovimiento.getValueAt(filaSeleccionada, 0);
+                // Verifica si es un movimiento de inventario o una toma fisica
+                if (Rdb_movimientoInventario.isSelected()) {
+                    tabla += "detalle_movimiento_inventario";
+                    // Crea una consulta para los detalles que cumplen con este numero de documento
+                    ResultSet select = connection.select("cod_articulo, tipo_movimiento, cantidad",
+                            tabla, "num_documento = " + numDocumento);
+                    while (select.next()) {
+                        // Obtengo los datos del detalle actual
+                        String articulo = select.getString(1);
+                        String tipoMovimiento = select.getString(2);
+                        Double cantidad = select.getDouble(3);
+                        // Hago otro select para obtener la cantidad de articulos disponibles
+                        ResultSet select2 = connection.select("existencia", "\"schinventario\".articulo",
+                                "cod_articulo = '" + articulo + "'");
+                        select2.next();
+                        // Obtiene la existencia actual del articulo
+                        Double cantidadEnExistencia = select2.getDouble(1);
+                        // Hago otro select para ver si debo sumar, restar o no hacer nada con este detalle
+                        select2 = connection.select("tipo_operacion", "\"schinventario\".tipo_movimiento",
+                                "tipo_movimiento = '" + tipoMovimiento + "'");
+                        select2.next();
+                        // Obtiene el tipo de operacion para dicho codigo de tipo movimiento
+                        String operacionMovimiento = select2.getString(1);
+                        // Verifico el cambio que debo hacer para el articulo
+                        if (operacionMovimiento.equals("-1")) {
+                            cantidadEnExistencia -= cantidad;
+                        } else if (operacionMovimiento.equals("1")) {
+                            cantidadEnExistencia += cantidad;
+                        } else {
+                            break;
+                        }
+                        String condicion = "cod_articulo = '" + articulo + "'";
+                        // Ahora se hace la actualizacion en la tabla para el detalle del movimiento de inventario actual                        
+                        connection.actualizar("\"schinventario\".articulo", "existencia = " + cantidadEnExistencia, condicion);
+                    }
+                    // Se indica en la base de datos que el movimiento ha sido aplicado
+                    connection.actualizar("\"schinventario\".movimiento_inventario",
+                            "aplicado = 'S'", "num_documento = " + numDocumento);
+                } else {
+                    tabla += "detalle_toma_fisica";
+                    // Crea una consulta para los detalles que cumplen con este numero de documento
+                    ResultSet select = connection.select("cod_articulo, existencia_fisica", tabla,
+                            "num_documento = " + numDocumento);
+                    while (select.next()) {
+                        // Obtengo los datos del detalle actual
+                        String articulo = select.getString(1);
+                        Double existenciaFisica = select.getDouble(2);
+                        String condicion = "cod_articulo = '" + articulo + "'";
+                        // Ahora se hace la actualizacion en la tabla para el detalle del toma fisica actual                        
+                        connection.actualizar("\"schinventario\".articulo", "existencia = " + existenciaFisica, condicion);
+                    }
+                    // Solicita el nombre de la persona que aplica la toma fisica
+                    String aplicadoPor = "";
+                    while (aplicadoPor == null || aplicadoPor.isEmpty()) {
+                        aplicadoPor = JOptionPane.showInputDialog(this, "Digite el nombre de la persona que aplica "
+                                + "la toma física");
+                        // Corta a las primeras 20 letras xq la BD solo aguanta eso
+                        if (aplicadoPor != null && aplicadoPor.length() > 20) {
+                            aplicadoPor = aplicadoPor.substring(0, 20);
+                        }
+                    }
+                    tbl_tomaMovimiento.setValueAt(aplicadoPor, filaSeleccionada, 5);
+                    // Se indica en la base de datos que la toma fisica ha sido aplicada
+                    connection.actualizar("\"schinventario\".toma_fisica", "aplicado = 'S', "
+                            + "aplicado_por = '" + aplicadoPor + "'", "num_documento = " + numDocumento);
+                }
+                // Se marca el check en el campo aplicado
+                tbl_tomaMovimiento.setValueAt(true, filaSeleccionada, 3);
+            } catch (SQLException ex) {
+                Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }//GEN-LAST:event_Btn_aplicarActionPerformed
+
+    /**
+     * Metodo utilizado para anular una toma fisica o un movimiento de
+     * inventario
+     *
+     * @param evt
+     */
+    private void Btn_AnularActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_AnularActionPerformed
+        int filaSeleccionada = tbl_tomaMovimiento.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "No ha seleccionado una fila para anular los detalles");
+        } else if (filaSeleccionada == tbl_tomaMovimiento.getRowCount() - 1) {
+            JOptionPane.showMessageDialog(this, "No se puede anular los detalles sobre la última fila, ya que"
+                    + " esta no ha sido creada");
+        } else if (!(boolean) tbl_tomaMovimiento.getValueAt(filaSeleccionada, 3)) {
+            JOptionPane.showMessageDialog(this, "El elemento seleccionado no se puede anular, ya que no ha sido aplicado");
+        } else if ((boolean) tbl_tomaMovimiento.getValueAt(filaSeleccionada, 4)) {
+            JOptionPane.showMessageDialog(this, "El elemento seleccionado ya fué anulado anteriormente");
+        } else {
+            try {
+                String tabla = "\"schinventario\".";
+                // Obtengo el numero de documento seleccionado
+                int numDocumento = (int) tbl_tomaMovimiento.getValueAt(filaSeleccionada, 0);
+                // Verifica si es un movimiento de inventario o una toma fisica
+                if (Rdb_movimientoInventario.isSelected()) {
+                    tabla += "detalle_movimiento_inventario";
+                    // Crea una consulta para los detalles que cumplen con este numero de documento
+                    ResultSet select = connection.select("cod_articulo, existencia_antes_movimiento",
+                            tabla, "num_documento = " + numDocumento);
+                    while (select.next()) {
+                        // Obtengo los datos del detalle actual
+                        String articulo = select.getString(1);
+                        Double existenciaPrevia = select.getDouble(2);
+                        String condicion = "cod_articulo = '" + articulo + "'";
+                        // Ahora se hace la actualizacion en la tabla para el detalle del movimiento de inventario actual                        
+                        connection.actualizar("\"schinventario\".articulo", "existencia = " + existenciaPrevia, condicion);
+                    }
+                    // Se indica en la base de datos que el movimiento ha sido anulado
+                    connection.actualizar("\"schinventario\".movimiento_inventario",
+                            "anulado = 'S'", "num_documento = " + numDocumento);
+                } else {
+                    tabla += "detalle_toma_fisica";
+                    // Crea una consulta para los detalles que cumplen con este numero de documento
+                    ResultSet select = connection.select("cod_articulo, existencia_teorica", tabla,
+                            "num_documento = " + numDocumento);
+                    while (select.next()) {
+                        // Obtengo los datos del detalle actual
+                        String articulo = select.getString(1);
+                        Double existenciaTeorica = select.getDouble(2);
+                        String condicion = "cod_articulo = '" + articulo + "'";
+                        // Ahora se hace la actualizacion en la tabla para el detalle del toma fisica actual                        
+                        connection.actualizar("\"schinventario\".articulo", "existencia = " + existenciaTeorica, condicion);
+                    }
+                    // Se indica en la base de datos que la toma fisica ha sido anulada
+                    connection.actualizar("\"schinventario\".toma_fisica", "anulado = 'S'",
+                            "num_documento = " + numDocumento);
+                }
+                // Se marca el check en el campo aplicado
+                tbl_tomaMovimiento.setValueAt(true, filaSeleccionada, 4);
+            } catch (SQLException ex) {
+                Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+    }//GEN-LAST:event_Btn_AnularActionPerformed
 
     /**
      * @param args the command line arguments
