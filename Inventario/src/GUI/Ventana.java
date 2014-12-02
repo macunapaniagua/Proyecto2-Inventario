@@ -37,7 +37,6 @@ public class Ventana extends javax.swing.JFrame {
     private DefaultTableModel modeloDetalleTomaFisica;
     private DefaultTableModel modeloMovimientoInventario;
     private DefaultTableModel modeloDetalleMovimientoInventario;
-
     // ComboBox utilizado para seleccionar los elementos existentes en cierta tabla
     private JComboBox<String> cmbFamilias;
     private JComboBox<String> cmbMarcas;
@@ -59,10 +58,14 @@ public class Ventana extends javax.swing.JFrame {
      */
     public Ventana() {
         initComponents();
+        this.setExtendedState(MAXIMIZED_BOTH);
         this.setLocationRelativeTo(null);
         // Agrego los radio button 'tomaFisica' y 'movimientoInventario' al radioGroup
         Rdg_Procesos.add(Rdb_tomaFisica);
         Rdg_Procesos.add(Rdb_movimientoInventario);
+        // Agrega los radio butons de consultas al radioGrup
+        Rdg_Consultas.add(rdb_PorExistencia);
+        Rdg_Consultas.add(rdb_PorMovimiento);
         // Inhabilito el boton que ya esta seleccionado (tomaFisica)
         Rdb_tomaFisica.setEnabled(false);
 
@@ -77,14 +80,6 @@ public class Ventana extends javax.swing.JFrame {
 
         cargarDatosComboBoxs();
         inicializarModelos();
-
-        Lbl_Titulo.setText("Tabla Familia");
-        tbl_Tabla.setModel(modeloFamilia);
-        modeloActualMantenimiento = modeloFamilia;
-
-        tbl_tomaMovimiento.setModel(modeloTomaFisica);
-        tbl_detalleTomaMovimiento.setModel(modeloDetalleTomaFisica);
-        tbl_detalleTomaMovimiento.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(cmbArticulos));
     }
 
     /**
@@ -99,7 +94,7 @@ public class Ventana extends javax.swing.JFrame {
             String[] movimientos = {"Resta", "No aplica", "Suma"};
             cmbOperacionMovimiento = new JComboBox<>(movimientos);
 
-            // Se cargan los valores para cmbFamilias
+            // Se cargan los valores para cmbTipoDeMovimiento
             cmbTipoDeMovimiento = new JComboBox<>();
             respuestaSelect = connection.select("tipo_movimiento, descripcion",
                     "\"schinventario\".tipo_movimiento", "activo = 'S'");
@@ -173,16 +168,16 @@ public class Ventana extends javax.swing.JFrame {
             }
         };
         // Creación del modelo para la tabla Articulo
-        String[] titulosArticulo = {"Código", "Descripción", "Familia", "Marca",
+        String[] titulosArticulo = {"Código", "Descripción", "Familia", "Marca", "Existencia",
             "Costo", "Impuesto", "Porcentaje de utilidad", "Precio de Venta", "Activo"};
         modeloArticulo = new DefaultTableModel(titulosArticulo, 0) {
             Class[] types = new Class[]{
-                String.class, String.class, String.class, String.class,
+                String.class, String.class, String.class, String.class, Double.class,
                 Double.class, String.class, Double.class, Double.class, Boolean.class
             };
 
             boolean[] canEdit = new boolean[]{
-                true, true, true, true, true, true, true, false, true
+                true, true, true, true, true, true, true, true, false, true
             };
 
             @Override
@@ -325,22 +320,20 @@ public class Ventana extends javax.swing.JFrame {
             }
         };
 
-        // SE ESTABLECE CADA MODELO PARA CARGAR LOS DATOS
+        // Se establece el modelo y se carga los datos
         modeloActualMantenimiento = modeloFamilia;
         getDatosForMantenimiento();
-        modeloActualMantenimiento = modeloMarca;
-        getDatosForMantenimiento();
-        modeloActualMantenimiento = modeloArticulo;
-        getDatosForMantenimiento();
-        modeloActualMantenimiento = modeloImpuesto;
-        getDatosForMantenimiento();
-        modeloActualMantenimiento = modeloTipoDeMovimiento;
-        getDatosForMantenimiento();
+        tbl_Tabla.setModel(modeloFamilia);
+
         // Se manda a cargar los modelos 'Movimiento de inventario' y 'Toma fisica'
         Rdb_movimientoInventario.setSelected(true);
         getDatosForProceso(false);
         Rdb_tomaFisica.setSelected(true);
         getDatosForProceso(false);
+
+        tbl_tomaMovimiento.setModel(modeloTomaFisica);
+        tbl_detalleTomaMovimiento.setModel(modeloDetalleTomaFisica);
+        tbl_detalleTomaMovimiento.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(cmbArticulos));
     }
 
     /**
@@ -438,8 +431,9 @@ public class Ventana extends javax.swing.JFrame {
     private void getDatosForMantenimiento() {
         try {
             ResultSet respuestaSelect;
+            modeloActualMantenimiento.setRowCount(0);
             if (modeloActualMantenimiento == modeloFamilia) {
-                respuestaSelect = this.connection.select("*", "\"schinventario\".familia_articulo", "");
+                respuestaSelect = this.connection.selectOrder("*", "\"schinventario\".familia_articulo", "", "cod_familia");
                 while (respuestaSelect.next()) {
                     boolean activo = respuestaSelect.getString(3).equals("S");
                     // Crea un arreglo con los datos de la tupla
@@ -448,7 +442,7 @@ public class Ventana extends javax.swing.JFrame {
                     modeloActualMantenimiento.addRow(data);
                 }
             } else if (modeloActualMantenimiento == modeloMarca) {
-                respuestaSelect = this.connection.select("*", "\"schinventario\".marca_articulo", "");
+                respuestaSelect = this.connection.selectOrder("*", "\"schinventario\".marca_articulo", "", "cod_marca");
                 while (respuestaSelect.next()) {
                     boolean activo = respuestaSelect.getString(3).equals("S");
                     // Crea un arreglo con los datos de la tupla
@@ -457,7 +451,7 @@ public class Ventana extends javax.swing.JFrame {
                     modeloActualMantenimiento.addRow(data);
                 }
             } else if (modeloActualMantenimiento == modeloImpuesto) {
-                respuestaSelect = this.connection.select("*", "\"schinventario\".impuesto", "");
+                respuestaSelect = this.connection.selectOrder("*", "\"schinventario\".impuesto", "", "cod_impuesto");
                 while (respuestaSelect.next()) {
                     boolean activo = respuestaSelect.getString(4).equals("S");
                     // Crea un arreglo con los datos de la tupla
@@ -467,7 +461,7 @@ public class Ventana extends javax.swing.JFrame {
                     modeloActualMantenimiento.addRow(data);
                 }
             } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
-                respuestaSelect = this.connection.select("*", "\"schinventario\".tipo_movimiento", "");
+                respuestaSelect = this.connection.selectOrder("*", "\"schinventario\".tipo_movimiento", "", "tipo_movimiento");
                 while (respuestaSelect.next()) {
                     boolean activo = respuestaSelect.getString(4).equals("S");
                     // Se obtiene el valor del tipo de operacion y se cambia a su String equivalente
@@ -485,7 +479,7 @@ public class Ventana extends javax.swing.JFrame {
                     modeloActualMantenimiento.addRow(data);
                 }
             } else if (modeloActualMantenimiento == modeloArticulo) {
-                respuestaSelect = this.connection.select("*", "\"schinventario\".articulo", "");
+                respuestaSelect = this.connection.selectOrder("*", "\"schinventario\".articulo", "", "cod_articulo");
                 while (respuestaSelect.next()) {
                     boolean activo = respuestaSelect.getString(8).equals("S");
                     String familia = respuestaSelect.getString(2);
@@ -493,9 +487,8 @@ public class Ventana extends javax.swing.JFrame {
                     String impuesto = respuestaSelect.getString(6);
                     // Crea un arreglo con los datos de la tupla
                     Object[] data = {respuestaSelect.getString(1), respuestaSelect.getString(4),
-                        respuestaSelect.getString(2), respuestaSelect.getString(3),
-                        respuestaSelect.getDouble(5), respuestaSelect.getString(6),
-                        respuestaSelect.getDouble(9), respuestaSelect.getDouble(7), activo};
+                        familia, marca, respuestaSelect.getDouble(10), respuestaSelect.getDouble(5),
+                        impuesto, respuestaSelect.getDouble(9), respuestaSelect.getDouble(7), activo};
 
                     ResultSet descMarcaFamiliaImpuesto;
                     // Se obtiene la descripcion de la familia
@@ -517,7 +510,7 @@ public class Ventana extends javax.swing.JFrame {
                     // Se cambian los valores del arreglo por la marca, familia e impuesto con descripcion
                     data[2] = familia;
                     data[3] = marca;
-                    data[5] = impuesto;
+                    data[6] = impuesto;
                     // Inserta los datos al modelo artículo
                     modeloActualMantenimiento.addRow(data);
                 }
@@ -538,6 +531,7 @@ public class Ventana extends javax.swing.JFrame {
     private void initComponents() {
 
         Rdg_Procesos = new javax.swing.ButtonGroup();
+        Rdg_Consultas = new javax.swing.ButtonGroup();
         jTabbedPane1 = new javax.swing.JTabbedPane();
         Pnl_Mantenimiento = new javax.swing.JPanel();
         jScrollPane1 = new javax.swing.JScrollPane();
@@ -562,9 +556,21 @@ public class Ventana extends javax.swing.JFrame {
         Btn_Salvar = new javax.swing.JButton();
         Btn_CrearDetalle = new javax.swing.JButton();
         Pnl_Consultas = new javax.swing.JPanel();
+        rdb_PorExistencia = new javax.swing.JRadioButton();
+        rdb_PorMovimiento = new javax.swing.JRadioButton();
+        jLabel2 = new javax.swing.JLabel();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        jTable1 = new javax.swing.JTable();
+        jPanel1 = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Inventario");
+
+        jTabbedPane1.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                jTabbedPane1StateChanged(evt);
+            }
+        });
 
         tbl_Tabla.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -574,6 +580,7 @@ public class Ventana extends javax.swing.JFrame {
 
             }
         ));
+        tbl_Tabla.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         tbl_Tabla.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mousePressed(java.awt.event.MouseEvent evt) {
                 tbl_TablaMousePressed(evt);
@@ -615,6 +622,7 @@ public class Ventana extends javax.swing.JFrame {
 
         Lbl_Titulo.setFont(new java.awt.Font("Tahoma", 3, 14)); // NOI18N
         Lbl_Titulo.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        Lbl_Titulo.setText("Familias");
 
         Cmb_Tablas.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Familia", "Marca", "Artículo", "Impuesto", "Tipo de Movimiento de Inventario" }));
         Cmb_Tablas.addFocusListener(new java.awt.event.FocusAdapter() {
@@ -628,33 +636,34 @@ public class Ventana extends javax.swing.JFrame {
             }
         });
 
-        jLabel1.setText("Selección de Tabla");
+        jLabel1.setText("Criterio de selección");
         jLabel1.setFocusable(false);
 
         javax.swing.GroupLayout Pnl_MantenimientoLayout = new javax.swing.GroupLayout(Pnl_Mantenimiento);
         Pnl_Mantenimiento.setLayout(Pnl_MantenimientoLayout);
         Pnl_MantenimientoLayout.setHorizontalGroup(
             Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(Lbl_Titulo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(Pnl_MantenimientoLayout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(Lbl_Titulo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jScrollPane1)
                     .addGroup(Pnl_MantenimientoLayout.createSequentialGroup()
-                        .addGap(26, 26, 26)
-                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 115, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(Cmb_Tablas, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 760, Short.MAX_VALUE)))
+                        .addGroup(Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(Pnl_MantenimientoLayout.createSequentialGroup()
+                                .addGap(26, 26, 26)
+                                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 115, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(Cmb_Tablas, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(Pnl_MantenimientoLayout.createSequentialGroup()
+                                .addGap(80, 80, 80)
+                                .addComponent(Btn_Insertar, javax.swing.GroupLayout.DEFAULT_SIZE, 297, Short.MAX_VALUE)
+                                .addGap(18, 18, 18)
+                                .addComponent(Btn_Actualizar, javax.swing.GroupLayout.DEFAULT_SIZE, 299, Short.MAX_VALUE)
+                                .addGap(18, 18, 18)
+                                .addComponent(Btn_Borrar, javax.swing.GroupLayout.DEFAULT_SIZE, 300, Short.MAX_VALUE)))
+                        .addGap(80, 80, 80)))
                 .addContainerGap())
-            .addGroup(Pnl_MantenimientoLayout.createSequentialGroup()
-                .addGap(142, 142, 142)
-                .addComponent(Btn_Insertar, javax.swing.GroupLayout.DEFAULT_SIZE, 258, Short.MAX_VALUE)
-                .addGap(18, 18, 18)
-                .addComponent(Btn_Actualizar, javax.swing.GroupLayout.DEFAULT_SIZE, 259, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(Btn_Borrar, javax.swing.GroupLayout.DEFAULT_SIZE, 260, Short.MAX_VALUE)
-                .addGap(163, 163, 163))
         );
         Pnl_MantenimientoLayout.setVerticalGroup(
             Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -666,13 +675,13 @@ public class Ventana extends javax.swing.JFrame {
                 .addGap(18, 18, 18)
                 .addComponent(Lbl_Titulo, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 455, Short.MAX_VALUE)
-                .addGap(27, 27, 27)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 407, Short.MAX_VALUE)
+                .addGap(34, 34, 34)
                 .addGroup(Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(Btn_Insertar, javax.swing.GroupLayout.DEFAULT_SIZE, 42, Short.MAX_VALUE)
-                    .addComponent(Btn_Actualizar, javax.swing.GroupLayout.DEFAULT_SIZE, 42, Short.MAX_VALUE)
-                    .addComponent(Btn_Borrar, javax.swing.GroupLayout.DEFAULT_SIZE, 42, Short.MAX_VALUE))
-                .addContainerGap())
+                    .addComponent(Btn_Insertar, javax.swing.GroupLayout.DEFAULT_SIZE, 37, Short.MAX_VALUE)
+                    .addComponent(Btn_Actualizar, javax.swing.GroupLayout.DEFAULT_SIZE, 37, Short.MAX_VALUE)
+                    .addComponent(Btn_Borrar, javax.swing.GroupLayout.DEFAULT_SIZE, 37, Short.MAX_VALUE))
+                .addGap(57, 57, 57))
         );
 
         jTabbedPane1.addTab("Mantenimiento", Pnl_Mantenimiento);
@@ -721,6 +730,7 @@ public class Ventana extends javax.swing.JFrame {
 
             }
         ));
+        tbl_detalleTomaMovimiento.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
         tbl_detalleTomaMovimiento.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 tbl_detalleTomaMovimientoMouseClicked(evt);
@@ -729,6 +739,8 @@ public class Ventana extends javax.swing.JFrame {
         jScrollPane5.setViewportView(tbl_detalleTomaMovimiento);
 
         btn_CrearTomaMovimiento.setText("Crear la toma física");
+        btn_CrearTomaMovimiento.setFocusable(false);
+        btn_CrearTomaMovimiento.setRequestFocusEnabled(false);
         btn_CrearTomaMovimiento.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btn_CrearTomaMovimientoActionPerformed(evt);
@@ -736,6 +748,8 @@ public class Ventana extends javax.swing.JFrame {
         });
 
         Btn_Anular.setText("Anular");
+        Btn_Anular.setFocusable(false);
+        Btn_Anular.setRequestFocusEnabled(false);
         Btn_Anular.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Btn_AnularActionPerformed(evt);
@@ -743,6 +757,8 @@ public class Ventana extends javax.swing.JFrame {
         });
 
         Btn_aplicar.setText("Aplicar");
+        Btn_aplicar.setFocusable(false);
+        Btn_aplicar.setRequestFocusEnabled(false);
         Btn_aplicar.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Btn_aplicarActionPerformed(evt);
@@ -750,6 +766,8 @@ public class Ventana extends javax.swing.JFrame {
         });
 
         Btn_Salvar.setText("Salvar");
+        Btn_Salvar.setFocusable(false);
+        Btn_Salvar.setRequestFocusEnabled(false);
         Btn_Salvar.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Btn_SalvarActionPerformed(evt);
@@ -757,6 +775,8 @@ public class Ventana extends javax.swing.JFrame {
         });
 
         Btn_CrearDetalle.setText("Crear Detalle");
+        Btn_CrearDetalle.setFocusable(false);
+        Btn_CrearDetalle.setRequestFocusEnabled(false);
         Btn_CrearDetalle.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Btn_CrearDetalleActionPerformed(evt);
@@ -774,7 +794,7 @@ public class Ventana extends javax.swing.JFrame {
                     .addGroup(jLayeredPane1Layout.createSequentialGroup()
                         .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jLayeredPane1Layout.createSequentialGroup()
-                                .addGap(25, 25, 25)
+                                .addGap(21, 21, 21)
                                 .addComponent(Btn_aplicar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(Btn_Anular, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -792,11 +812,11 @@ public class Ventana extends javax.swing.JFrame {
                 .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jLayeredPane1Layout.createSequentialGroup()
                         .addGap(119, 119, 119)
-                        .addComponent(Btn_Salvar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(Btn_Salvar, javax.swing.GroupLayout.DEFAULT_SIZE, 175, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(Btn_CrearDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(Btn_CrearDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, 205, Short.MAX_VALUE)
                         .addGap(105, 105, 105))
-                    .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 609, Short.MAX_VALUE))
+                    .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 610, Short.MAX_VALUE))
                 .addGap(31, 31, 31))
         );
         jLayeredPane1Layout.setVerticalGroup(
@@ -815,10 +835,10 @@ public class Ventana extends javax.swing.JFrame {
                 .addGap(18, 18, 18)
                 .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btn_CrearTomaMovimiento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(Btn_aplicar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(Btn_Salvar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(Btn_CrearDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(Btn_Anular, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(Btn_Anular, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(Btn_aplicar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(87, 87, 87))
         );
 
@@ -837,15 +857,73 @@ public class Ventana extends javax.swing.JFrame {
 
         jTabbedPane1.addTab("Procesos", jLayeredPane1);
 
+        rdb_PorExistencia.setText("Por existencia");
+
+        rdb_PorMovimiento.setText("Por movimiento de inventario");
+
+        jLabel2.setText("Seleccione el tipo de consulta a realizar");
+
+        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane2.setViewportView(jTable1);
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 139, Short.MAX_VALUE)
+        );
+
         javax.swing.GroupLayout Pnl_ConsultasLayout = new javax.swing.GroupLayout(Pnl_Consultas);
         Pnl_Consultas.setLayout(Pnl_ConsultasLayout);
         Pnl_ConsultasLayout.setHorizontalGroup(
             Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 1110, Short.MAX_VALUE)
+            .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                        .addGap(37, 37, 37)
+                        .addComponent(jLabel2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(rdb_PorMovimiento)
+                            .addComponent(rdb_PorExistencia)))
+                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                        .addGap(21, 21, 21)
+                        .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 1070, Short.MAX_VALUE)
+                            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                .addContainerGap(21, Short.MAX_VALUE))
         );
         Pnl_ConsultasLayout.setVerticalGroup(
             Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 640, Short.MAX_VALUE)
+            .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                        .addGap(25, 25, 25)
+                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+                        .addGap(50, 50, 50)
+                        .addComponent(rdb_PorExistencia)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(rdb_PorMovimiento)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 6, Short.MAX_VALUE)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(64, 64, 64))
         );
 
         jTabbedPane1.addTab("Consultas", Pnl_Consultas);
@@ -893,16 +971,13 @@ public class Ventana extends javax.swing.JFrame {
                 tbl_Tabla.setValueAt(false, filaInsercion, 2);
             }
             String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 2) ? "S" : "N";
-
             // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
             if (codigo == null || descripcion == null || codigo.equals("") || descripcion.equals("")) {
                 JOptionPane.showMessageDialog(this, "No es posible insertar una nueva familia si hay campos sin información");
                 return;
             } else {
                 campos = "'" + codigo + "', '" + descripcion + "', '" + activo + "'";
-//////                System.out.println(campos);
             }
-
         } else if (modeloActualMantenimiento == modeloMarca) {
             tabla += "marca_articulo";
             // Obtiene el valor de los campos que se van a insertar en la BD
@@ -912,16 +987,13 @@ public class Ventana extends javax.swing.JFrame {
                 tbl_Tabla.setValueAt(false, filaInsercion, 2);
             }
             String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 2) ? "S" : "N";
-
             // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
             if (codigo == null || descripcion == null || codigo.equals("") || descripcion.equals("")) {
                 JOptionPane.showMessageDialog(this, "No es posible insertar una nueva marca si hay campos sin información");
                 return;
             } else {
                 campos = "'" + codigo + "', '" + descripcion + "', '" + activo + "'";
-//////                System.out.println(campos);
             }
-
         } else if (modeloActualMantenimiento == modeloImpuesto) {
             tabla += "impuesto";
             // Obtiene el valor de los campos que se van a insertar en la BD
@@ -932,16 +1004,13 @@ public class Ventana extends javax.swing.JFrame {
                 tbl_Tabla.setValueAt(false, filaInsercion, 3);
             }
             String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 3) ? "S" : "N";
-
             // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
             if (codigo == null || descripcion == null || porcentaje == null || codigo.equals("") || descripcion.equals("")) {
                 JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo impuesto si hay campos sin información");
                 return;
             } else {
                 campos = "'" + codigo + "', '" + descripcion + "', " + porcentaje + ", '" + activo + "'";
-//////                System.out.println(campos);
             }
-
         } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
             tabla += "tipo_movimiento";
             // Obtiene el valor de los campos que se van a insertar en la BD
@@ -952,7 +1021,6 @@ public class Ventana extends javax.swing.JFrame {
                 tbl_Tabla.setValueAt(false, filaInsercion, 3);
             }
             String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 3) ? "S" : "N";
-
             // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
             if (tipo == null || descripcion == null || operacion == null || tipo.equals("") || descripcion.equals("")) {
                 JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo tipo de movimiento, si hay campos sin información");
@@ -967,9 +1035,7 @@ public class Ventana extends javax.swing.JFrame {
                     operacion = "1";
                 }
                 campos = "'" + tipo + "', '" + descripcion + "', '" + operacion + "', '" + activo + "'";
-//////                System.out.println(campos);
             }
-
         } else if (modeloActualMantenimiento == modeloArticulo) {
             tabla += "articulo";
             // Obtiene el valor de los campos que se van a insertar en la BD
@@ -977,17 +1043,17 @@ public class Ventana extends javax.swing.JFrame {
             String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
             String familia = (String) tbl_Tabla.getValueAt(filaInsercion, 2);
             String marca = (String) tbl_Tabla.getValueAt(filaInsercion, 3);
-            Double precioSinImp = (Double) tbl_Tabla.getValueAt(filaInsercion, 4);
-            String impuesto = (String) tbl_Tabla.getValueAt(filaInsercion, 5);
-            Double utilidad = (Double) tbl_Tabla.getValueAt(filaInsercion, 6);
-            if (tbl_Tabla.getValueAt(filaInsercion, 8) == null) {
-                tbl_Tabla.setValueAt(false, filaInsercion, 8);
+            Double existencia = (Double) tbl_Tabla.getValueAt(filaInsercion, 4);
+            Double precioSinImp = (Double) tbl_Tabla.getValueAt(filaInsercion, 5);
+            String impuesto = (String) tbl_Tabla.getValueAt(filaInsercion, 6);
+            Double utilidad = (Double) tbl_Tabla.getValueAt(filaInsercion, 7);
+            if (tbl_Tabla.getValueAt(filaInsercion, 9) == null) {
+                tbl_Tabla.setValueAt(false, filaInsercion, 9);
             }
-            String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 8) ? "S" : "N";
-
+            String activo = (boolean) tbl_Tabla.getValueAt(filaInsercion, 9) ? "S" : "N";
             // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor, ya que son NOT NULL
             if (codigo == null || codigo.equals("") || descripcion == null || descripcion.equals("") || familia == null
-                    || marca == null || precioSinImp == null || impuesto == null || utilidad == null) {
+                    || marca == null || existencia == null || precioSinImp == null || impuesto == null || utilidad == null) {
                 JOptionPane.showMessageDialog(this, "No es posible insertar un nuevo artículo si hay campos sin información");
                 return;
             } else {
@@ -1001,16 +1067,14 @@ public class Ventana extends javax.swing.JFrame {
                 try {
                     resSelect = connection.select("porcentaje", "\"schinventario\".impuesto", "cod_impuesto = '" + impuesto + "'");
                     resSelect.next();
-                    Double valorImp;
-                    valorImp = resSelect.getDouble(1);
+                    Double valorImp = resSelect.getDouble(1);
                     // Se calcula el costo del articulo con impuestos
                     Double costo = precioSinImp * ((valorImp / 100) + 1) * ((utilidad / 100) + 1);
                     // Se coloca el costo del articulo en la tabla
-                    tbl_Tabla.setValueAt(costo, filaInsercion, 7);
+                    tbl_Tabla.setValueAt(costo, filaInsercion, 8);
                     // Se almacenan todos los campos que se van a insertar en un String
-                    campos = "'" + codigo + "', '" + familia + "', '" + marca + "', '" + descripcion + "', "
-                            + precioSinImp + ", '" + impuesto + "', " + costo + ", '" + activo + "', " + utilidad;
-//////                    System.out.println(campos);
+                    campos = "'" + codigo + "', '" + familia + "', '" + marca + "', '" + descripcion + "', " + precioSinImp
+                            + ", '" + impuesto + "', " + costo + ", '" + activo + "', " + utilidad + ", " + existencia;
                 } catch (SQLException ex) {
                     Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
                     JOptionPane.showMessageDialog(this, "Ha ocurrido un error al intentar obtener el impuesto");
@@ -1020,18 +1084,16 @@ public class Ventana extends javax.swing.JFrame {
         }
 
         if (connection.insert(tabla, campos)) {
-//////            System.out.println("Inserción exitosa");
             // Verifica si el campo esta activo y lo agrega en el respectivo comboBox
             String codigo = (String) tbl_Tabla.getValueAt(filaInsercion, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaInsercion, 1);
-
             if (modeloActualMantenimiento == modeloFamilia && (boolean) tbl_Tabla.getValueAt(filaInsercion, 2)) {
                 cmbFamilias.addItem(codigo + " = " + descripcion);
             } else if (modeloActualMantenimiento == modeloMarca && (boolean) tbl_Tabla.getValueAt(filaInsercion, 2)) {
                 cmbMarcas.addItem(codigo + " = " + descripcion);
             } else if (modeloActualMantenimiento == modeloImpuesto && (boolean) tbl_Tabla.getValueAt(filaInsercion, 3)) {
                 cmbImpuestos.addItem(codigo + " = " + descripcion);
-            } else if (modeloActualMantenimiento == modeloArticulo && (boolean) tbl_Tabla.getValueAt(filaInsercion, 8)) {
+            } else if (modeloActualMantenimiento == modeloArticulo && (boolean) tbl_Tabla.getValueAt(filaInsercion, 9)) {
                 cmbArticulos.addItem(codigo + " = " + descripcion);
             } else if (modeloActualMantenimiento == modeloTipoDeMovimiento && (boolean) tbl_Tabla.getValueAt(filaInsercion, 3)) {
                 cmbTipoDeMovimiento.addItem(codigo + " = " + descripcion);
@@ -1041,8 +1103,8 @@ public class Ventana extends javax.swing.JFrame {
         } else {
             JOptionPane.showMessageDialog(this, "Ha ocurrido un error en la inserción");
             // Borra los valores de la ultima fila
-            ((DefaultTableModel) tbl_Tabla.getModel()).removeRow(filaInsercion);
-            ((DefaultTableModel) tbl_Tabla.getModel()).setRowCount(filaInsercion + 1);
+            modeloActualMantenimiento.removeRow(filaInsercion);
+            modeloActualMantenimiento.setRowCount(filaInsercion + 1);
         }
     }//GEN-LAST:event_Btn_InsertarActionPerformed
 
@@ -1073,7 +1135,7 @@ public class Ventana extends javax.swing.JFrame {
             } else if (modeloActualMantenimiento == modeloArticulo) {
                 tabla += "articulo";
                 condicion = "cod_articulo = '" + pkSelectedRow + "'";
-                activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 8);
+                activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 9);
             } else if (modeloActualMantenimiento == modeloImpuesto) {
                 tabla += "impuesto";
                 condicion = "cod_impuesto = '" + pkSelectedRow + "'";
@@ -1086,7 +1148,6 @@ public class Ventana extends javax.swing.JFrame {
 
             // Se procede a eliminar los datos de la tabla
             if (connection.borrar(tabla, condicion)) {
-//////                System.out.println("Borrado exitoso");
                 // Se elimina la fila seleccionada
                 modeloActualMantenimiento.removeRow(numFilaAnterior);
                 // Se verifica si se esta eliminando un campo que haya en un comboBox y lo quita
@@ -1105,7 +1166,6 @@ public class Ventana extends javax.swing.JFrame {
                 numFilaAnterior = -1;
                 datosFilaActual = null;
                 pkSelectedRow = null;
-
             } else {
                 JOptionPane.showMessageDialog(this, "No es posible eliminar la tupla seleccionada");
             }
@@ -1115,165 +1175,105 @@ public class Ventana extends javax.swing.JFrame {
     }//GEN-LAST:event_Btn_BorrarActionPerformed
 
     /**
-     * Metodo para verificar si una instancia activa esta siento utilizada en
-     * una tabla especifica
+     * Metodo utilizado para actualizar los datos de marca, familia, impuesto,
+     * tipo de movimiento y articulo
      *
-     * @param pTabla tabla donde se va a analizar si es utilizado dicha
-     * instancia
-     * @param pCodigo codigo de la instancia a buscar
-     * @param pColumna columna de la tabla donde se encuentra dicho codigo como
-     * F.K
-     * @return true si existe o false en caso contrario
+     * @param evt
      */
-    private boolean esCodigoActivoUtilizado(String pTabla, String pCodigo, int pColumna) {
-        if (pTabla.equals("articulos")) {
-            // Verifica todas la filas para ver si se encuentra el pCodigo en la columna pColumna
-            for (int i = 0; i < modeloArticulo.getRowCount() - 1; i++) {
-                if (modeloArticulo.getValueAt(i, pColumna).equals(pCodigo)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Metodo utilizado para modificar la aparicion de un elemento en una
-     * columna
-     *
-     * @param pTable tabla donde se va a buscar
-     * @param pValActual valor que se va a buscar para cambiar
-     * @param pValNuevo valor nuevo que se desea cambiar
-     * @param pColumna numero de columna sobre la cual se va a realizar la
-     * modificacion
-     */
-    private void modificarAparicionesEnCol(String pTable, String pValActual, String pValNuevo, int pColumna) {
-        if (pTable.equals("articulos")) {
-            for (int i = 0; i < modeloArticulo.getRowCount() - 1; i++) {
-                // Cambia el valor viejo por el nuevo si el campo analizado debe modificarse
-                if (((String) modeloArticulo.getValueAt(i, pColumna)).equals(pValActual)) {
-                    modeloArticulo.setValueAt(pValNuevo, i, pColumna);
-                }
-            }
-        }
-    }
-
-    /**
-     * Metodo utilizado para modificar el costo del articulo cuando hay un
-     * cambio en el porcentaje de impuesto
-     *
-     * @param pCodigoPorcentaje codigo del nuevo impuesto(el que fue modificado)
-     * @param pNuevoImpuesto valor del nuevo impuesto
-     */
-    private void modificarCostosArticulos(String pCodigoPorcentaje, Double pNuevoImpuesto) {
-        String tabla = "\"schinventario\".articulo";
-        for (int i = 0; i < modeloArticulo.getRowCount() - 1; i++) {
-            // Verifica si el codigo del porcentaje de la fila analizada es iagual al que se va a modificar
-            if (((String) modeloArticulo.getValueAt(i, 5)).equals(pCodigoPorcentaje)) {
-                // Objetien los valores del precio y la utilidad que desea ganarse
-                Double precioSinImpusto = (Double) modeloArticulo.getValueAt(i, 4);
-                Double porcentajeUtilidad = (Double) modeloArticulo.getValueAt(i, 6);
-                // Se calcula el costo del articulo con impuestos
-                Double costo = precioSinImpusto * ((pNuevoImpuesto / 100) + 1) * ((porcentajeUtilidad / 100) + 1);
-                // Se establece el nuevo valor del costo en el articulo
-                modeloArticulo.setValueAt(costo, i, 7);
-                // Se manda a modificar el costo a la base de datos
-                String campo = "costo = " + costo;
-                String condicion = "cod_articulo = '" + modeloArticulo.getValueAt(i, 0) + "'";
-                connection.actualizar(tabla, campo, condicion);
-            }
-        }
-    }
-
     private void Btn_ActualizarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Btn_ActualizarActionPerformed
         if (numFilaAnterior != -1) {
-            String campos = "";
-            String primaryKey = "";
-            String tabla = "\"schinventario\".";
-
-            if (modeloActualMantenimiento == modeloFamilia) {
-                tabla += "familia_articulo";
-                primaryKey = "cod_familia = '" + pkSelectedRow + "'";
-                // Obtiene el valor de los campos
-                String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2) ? "S" : "N";
-                // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
-                if (codigo.equals("") || descripcion.equals("")) {
-                    JOptionPane.showMessageDialog(this, "No es posible actualizar una familia si hay campos sin información");
-                    return;
-                } else if ((boolean) datosFilaActual[2] && activo.equals("N")
-                        && esCodigoActivoUtilizado("articulos", datosFilaActual[0] + " = " + datosFilaActual[1], 2)) {
-                    // El codigo esta siendo utilizado en articulo, no se puede desactivar
-                    JOptionPane.showMessageDialog(this, "No es posible desactivar la familia, ya que aún hay artículos que la continen");
-                    return;
-                } else {
+            try {
+                String campos = "";
+                String primaryKey = "";
+                String tabla = "\"schinventario\".";
+                if (modeloActualMantenimiento == modeloFamilia) {
+                    // Obtiene el valor de los campos
+                    String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                    String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                    String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2) ? "S" : "N";
+                    // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
+                    if (codigo.equals("") || descripcion.equals("")) {
+                        JOptionPane.showMessageDialog(this, "No es posible actualizar una familia si hay campos sin información");
+                        return;
+                    }
+                    // Verifica si esta cambiando de activo a inactivo y si esta siendo utilizado
+                    if ((boolean) datosFilaActual[2] && activo.equals("N")) {
+                        ResultSet select = connection.select("*", tabla + "articulo", "cod_familia = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en articulo, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar la familia, ya que aún hay artículos que la continen");
+                            return;
+                        }
+                    }
                     // Se almacenan los campos que se van a modificar en la tabla
-                    campos = "cod_familia = '" + codigo + "', descripcion = '" + descripcion + "', "
-                            + "activo = '" + activo + "'";
-                }
-
-            } else if (modeloActualMantenimiento == modeloMarca) {
-                tabla += "marca_articulo";
-                primaryKey = "cod_marca = '" + pkSelectedRow + "'";
-                // Obtiene el valor de los campos
-                String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2) ? "S" : "N";
-                // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
-                if (codigo.equals("") || descripcion.equals("")) {
-                    JOptionPane.showMessageDialog(this, "No es posible actualizar una marca si hay campos sin información");
-                    return;
-                } else if ((boolean) datosFilaActual[2] && activo.equals("N")
-                        && esCodigoActivoUtilizado("articulos", datosFilaActual[0] + " = " + datosFilaActual[1], 3)) {
-                    // El codigo esta siendo utilizado en articulo, no se puede desactivar
-                    JOptionPane.showMessageDialog(this, "No es posible desactivar la marca, ya que aún hay artículos que la continen");
-                    return;
-                } else {
-                    campos = "cod_marca = '" + codigo + "', descripcion = '" + descripcion + "', "
-                            + "activo = '" + activo + "'";
-                }
-
-            } else if (modeloActualMantenimiento == modeloImpuesto) {
-                tabla += "impuesto";
-                primaryKey = "cod_impuesto = '" + pkSelectedRow + "'";
-                // Obtiene el valor de los campos
-                String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                Double porcentaje = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 2);
-                String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3) ? "S" : "N";
-                // Verifica que los campos 'codigo' y 'descripcion' y 'porcentaje' contengan algun valor
-                if (porcentaje == null || codigo.equals("") || descripcion.equals("")) {
-                    JOptionPane.showMessageDialog(this, "No es posible actualizar un impuesto si hay campos sin información");
-                    return;
-                } else if ((boolean) datosFilaActual[3] && activo.equals("N")
-                        && esCodigoActivoUtilizado("articulos", datosFilaActual[0] + " = " + datosFilaActual[1], 5)) {
-                    // El codigo esta siendo utilizado en articulo, no se puede desactivar
-                    JOptionPane.showMessageDialog(this, "No es posible desactivar el impuesto, ya que aún hay artículos que lo continen");
-                    return;
-                } else {
-                    campos = "cod_impuesto = '" + codigo + "', descripcion = '" + descripcion + "', "
-                            + "porcentaje = " + porcentaje + ", activo = '" + activo + "'";
-                }
-
-            } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
-                tabla += "tipo_movimiento";
-                primaryKey = "tipo_movimiento = '" + pkSelectedRow + "'";
-                // Obtiene el valor de los campos
-                String tipo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                String operacion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 2);
-                String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3) ? "S" : "N";
-                // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
-                if (tipo.equals("") || descripcion.equals("")) {
-                    JOptionPane.showMessageDialog(this, "No es posible actualizar un tipo de movimiento, si hay campos sin información");
-                    return;
-                } /*else if ((boolean) datosFilaActual[3] && activo.equals("N") && 
-                 esCodigoActivoUtilizado("articulos", codigo + " = " + descripcion, 5)) {
-                 // El codigo esta siendo utilizado en articulo, no se puede desactivar
-                 JOptionPane.showMessageDialog(this, "No es posible desactivar el impuesto, ya que aún hay artículos que lo continen");
-                 return;
-                 }*/ else {
+                    tabla += "familia_articulo";
+                    primaryKey = "cod_familia = '" + pkSelectedRow + "'";
+                    campos = "cod_familia = '" + codigo + "', descripcion = '" + descripcion + "', " + "activo = '" + activo + "'";
+                } else if (modeloActualMantenimiento == modeloMarca) {
+                    // Obtiene el valor de los campos
+                    String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                    String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                    String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2) ? "S" : "N";
+                    // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
+                    if (codigo.equals("") || descripcion.equals("")) {
+                        JOptionPane.showMessageDialog(this, "No es posible actualizar una marca si hay campos sin información");
+                        return;
+                    }
+                    if ((boolean) datosFilaActual[2] && activo.equals("N")) {
+                        ResultSet select = connection.select("*", tabla + "articulo", "cod_marca = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en articulo, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar la marca, ya que aún hay artículos que la continen");
+                            return;
+                        }
+                    }
+                    tabla += "marca_articulo";
+                    primaryKey = "cod_marca = '" + pkSelectedRow + "'";
+                    campos = "cod_marca = '" + codigo + "', descripcion = '" + descripcion + "', " + "activo = '" + activo + "'";
+                } else if (modeloActualMantenimiento == modeloImpuesto) {
+                    // Obtiene el valor de los campos
+                    String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                    String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                    Double porcentaje = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 2);
+                    String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3) ? "S" : "N";
+                    // Verifica que los campos 'codigo' y 'descripcion' y 'porcentaje' contengan algun valor
+                    if (porcentaje == null || codigo.equals("") || descripcion.equals("")) {
+                        JOptionPane.showMessageDialog(this, "No es posible actualizar un impuesto si hay campos sin información");
+                        return;
+                    }
+                    if ((boolean) datosFilaActual[3] && activo.equals("N")) {
+                        ResultSet select = connection.select("*", tabla + "articulo", "cod_impuesto = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en articulo, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar el impuesto, ya que aún hay artículos que lo continen");
+                            return;
+                        }
+                    }
+                    tabla += "impuesto";
+                    primaryKey = "cod_impuesto = '" + pkSelectedRow + "'";
+                    campos = "cod_impuesto = '" + codigo + "', descripcion = '"
+                            + descripcion + "', " + "porcentaje = " + porcentaje + ", activo = '" + activo + "'";
+                } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
+                    // Obtiene el valor de los campos
+                    String tipo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                    String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                    String operacion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 2);
+                    String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3) ? "S" : "N";
+                    // Verifica que los campos 'codigo' y 'descripcion' contengan algun valor
+                    if (tipo.equals("") || descripcion.equals("")) {
+                        JOptionPane.showMessageDialog(this, "No es posible actualizar un tipo de movimiento, si hay campos sin información");
+                        return;
+                    }
+                    if ((boolean) datosFilaActual[3] && activo.equals("N")) {
+                        ResultSet select = connection.select("*", tabla + "detalle_movimiento_inventario",
+                                "tipo_movimiento = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en un detalle de movimiento, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar el tipo de movimiento, ya "
+                                    + "que aún hay detalles de movimiento de inventario que lo continen");
+                            return;
+                        }
+                    }
                     // Obtiene el valor correspondiente al tipo de operacion
                     if (operacion.equals("Resta")) {
                         operacion = "-1";
@@ -1282,32 +1282,46 @@ public class Ventana extends javax.swing.JFrame {
                     } else {
                         operacion = "1";
                     }
+                    tabla += "tipo_movimiento";
+                    primaryKey = "tipo_movimiento = '" + pkSelectedRow + "'";
                     campos = "tipo_movimiento = '" + tipo + "', descripcion = '" + descripcion + "', "
                             + "tipo_operacion = '" + operacion + "', activo = '" + activo + "'";
-                }
-
-            } else if (modeloActualMantenimiento == modeloArticulo) {
-                tabla += "articulo";
-                primaryKey = "cod_articulo = '" + pkSelectedRow + "'";
-                // Obtiene el valor de los campos
-                String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                String familia = (String) tbl_Tabla.getValueAt(numFilaAnterior, 2);
-                String marca = (String) tbl_Tabla.getValueAt(numFilaAnterior, 3);
-                Double precioSinImp = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 4);
-                String impuesto = (String) tbl_Tabla.getValueAt(numFilaAnterior, 5);
-                Double utilidad = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 6);
-                String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 8) ? "S" : "N";
-                // Verifica que todos los campos contengan algun valor
-                if (codigo.equals("") || descripcion.equals("") || precioSinImp == null || utilidad == null) {
-                    JOptionPane.showMessageDialog(this, "No es posible actualizar un artículo si hay campos sin información");
-                    return;
-                } /*else if ((boolean) datosFilaActual[3] && activo.equals("N") && 
-                 esCodigoActivoUtilizado("articulos", codigo + " = " + descripcion, 5)) {
-                 // El codigo esta siendo utilizado en articulo, no se puede desactivar
-                 JOptionPane.showMessageDialog(this, "No es posible desactivar el impuesto, ya que aún hay artículos que lo continen");
-                 return;
-                 }*/ else {
+                } else if (modeloActualMantenimiento == modeloArticulo) {
+                    // Obtiene el valor de los campos
+                    String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                    String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                    String familia = (String) tbl_Tabla.getValueAt(numFilaAnterior, 2);
+                    String marca = (String) tbl_Tabla.getValueAt(numFilaAnterior, 3);
+                    Double existencia = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 4);
+                    Double precioSinImp = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 5);
+                    String impuesto = (String) tbl_Tabla.getValueAt(numFilaAnterior, 6);
+                    Double utilidad = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 7);
+                    String activo = (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 9) ? "S" : "N";
+                    // Verifica que todos los campos contengan algun valor
+                    if (codigo.equals("") || descripcion.equals("") || existencia == null || precioSinImp == null || utilidad == null) {
+                        JOptionPane.showMessageDialog(this, "No es posible actualizar un artículo si hay campos sin información");
+                        return;
+                    }
+                    // Verifica si esta activo y se desea desactivar pero hay alguna FK utilizandolo
+                    if ((boolean) datosFilaActual[9] && activo.equals("N")) {
+                        // Verifica la presencia de este articulo en la tabla detalle movimiento de inventario
+                        ResultSet select = connection.select("*", tabla + "detalle_movimiento_inventario",
+                                "cod_articulo = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en un detalle de movimiento, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar el articulo, ya "
+                                    + "que aún hay detalles de movimiento de inventario que lo continen");
+                            return;
+                        }
+                        // Verifica la presencia de este articulo en la tabla detalle toma fisica
+                        select = connection.select("*", tabla + "detalle_toma_fisica", "cod_articulo = '" + datosFilaActual[0] + "'");
+                        if (select.next()) {
+                            // El codigo esta siendo utilizado en un detalle de toma fisica, no se puede desactivar
+                            JOptionPane.showMessageDialog(this, "No es posible desactivar el artículo, ya "
+                                    + "que aún hay detalles de toma física que lo continen");
+                            return;
+                        }
+                    }
                     // Obtiene los codigos de FK familia, marca e impuesto
                     String separador = " = ";
                     familia = familia.substring(0, familia.indexOf(separador));
@@ -1315,135 +1329,163 @@ public class Ventana extends javax.swing.JFrame {
                     impuesto = impuesto.substring(0, impuesto.indexOf(separador));
                     // Se hace un select para obtener el porcentaje de impuesto
                     ResultSet resSelect;
-                    try {
-                        resSelect = connection.select("porcentaje", "\"schinventario\".impuesto", "cod_impuesto = '" + impuesto + "'");
-                        resSelect.next();
-                        Double valorImp = resSelect.getDouble(1);
-                        // Se calcula el costo del articulo con impuestos
-                        Double costo = precioSinImp * ((valorImp / 100) + 1) * ((utilidad / 100) + 1);
-                        // Se coloca el costo del articulo en la tabla
-                        tbl_Tabla.setValueAt(costo, numFilaAnterior, 7);
-                        // Se almacenan todos los campos
-                        campos = "cod_articulo = '" + codigo + "', cod_familia = '" + familia + "', "
-                                + "cod_marca = '" + marca + "', descripcion = '" + descripcion + "', "
-                                + "precio_sin_imp = " + precioSinImp + ", cod_impuesto = '" + impuesto + "', "
-                                + "costo = " + costo + ", activo = '" + activo + "', "
-                                + "porcentaje_utilidad = " + utilidad;
-                        System.out.println(campos);
-                    } catch (SQLException ex) {
-                        Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
-                        JOptionPane.showMessageDialog(this, "Ha ocurrido un error al intentar obtener el impuesto");
-                        return;
-                    }
+                    resSelect = connection.select("porcentaje", tabla + "impuesto", "cod_impuesto = '" + impuesto + "'");
+                    resSelect.next();
+                    Double valorImp = resSelect.getDouble(1);
+                    // Se calcula el costo del articulo con impuestos
+                    Double costo = precioSinImp * ((valorImp / 100) + 1) * ((utilidad / 100) + 1);
+                    // Se coloca el costo del articulo en la tabla
+                    tbl_Tabla.setValueAt(costo, numFilaAnterior, 8);
+                    // Se almacenan todos los campos
+                    tabla += "articulo";
+                    primaryKey = "cod_articulo = '" + pkSelectedRow + "'";
+                    campos = "cod_articulo = '" + codigo + "', cod_familia = '" + familia + "', "
+                            + "cod_marca = '" + marca + "', descripcion = '" + descripcion + "', "
+                            + "precio_sin_imp = " + precioSinImp + ", cod_impuesto = '" + impuesto + "', "
+                            + "costo = " + costo + ", activo = '" + activo + "', "
+                            + "porcentaje_utilidad = " + utilidad + ", existencia = " + existencia;
+
                 }
-            }
 
-            // Verifica si la actualizacion de los datos fue exitosa
-            if (connection.actualizar(tabla, campos, primaryKey)) {
-
-                if (modeloActualMantenimiento == modeloFamilia) {
-                    // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
-                    if ((boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
-                        String codigoAnt = (String) datosFilaActual[0];
-                        String descripcionAnt = (String) datosFilaActual[1];
-                        String codDesAnterior = codigoAnt + " = " + descripcionAnt;
-                        String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        String codDesActual = codigoAct + " = " + descripcionAct;
-                        // Si cambiaron, hay que hacer la modificacion en el comboBox de familias y la tabla articulos
-                        if (!(codDesAnterior).equals(codDesActual)) {
-                            cmbFamilias.removeItem(codDesAnterior);
-                            cmbFamilias.addItem(codDesActual);
-                            modificarAparicionesEnCol("articulos", codDesAnterior, codDesActual, 2);
+                // Verifica si la actualizacion de los datos fue exitosa
+                if (connection.actualizar(tabla, campos, primaryKey)) {
+                    if (modeloActualMantenimiento == modeloFamilia) {
+                        // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
+                        if ((boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
+                            String codDesAnterior = datosFilaActual[0] + " = " + datosFilaActual[1];
+                            String codDesActual = tbl_Tabla.getValueAt(numFilaAnterior, 0)
+                                    + " = " + tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            // Si cambiaron, hay que hacer la modificacion en el comboBox de familias y la tabla articulos
+                            if (!(codDesAnterior).equals(codDesActual)) {
+                                cmbFamilias.removeItem(codDesAnterior);
+                                cmbFamilias.addItem(codDesActual);
+                            }
+                        } else if ((boolean) datosFilaActual[2] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Remueve la familia del comboBox xq esta ya no esta activa
+                            cmbFamilias.removeItem(datosFilaActual[0] + " = " + datosFilaActual[1]);
+                        } else if (!(boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Ahora esta activo. Agrega el codigo al comboBox de familias
+                            String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            cmbFamilias.addItem(codigo + " = " + descripcion);
                         }
-                    } else if ((boolean) datosFilaActual[2] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Remueve la familia del comboBox xq esta ya no esta activa
-                        String codigo = (String) datosFilaActual[0];
-                        String descripcion = (String) datosFilaActual[1];
-                        cmbFamilias.removeItem(codigo + " = " + descripcion);
-                    } else if (!(boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Ahora esta activo. Agrega el codigo al comboBox de familias
-                        String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        cmbFamilias.addItem(codigo + " = " + descripcion);
+                    } else if (modeloActualMantenimiento == modeloMarca) {
+                        // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
+                        if ((boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
+                            String codDesAnterior = datosFilaActual[0] + " = " + datosFilaActual[1];
+                            String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            String codDesActual = codigoAct + " = " + descripcionAct;
+                            // Si cambiaron, hay que hacer la modificacion en el comboBox de marcas y la tabla articulos
+                            if (!(codDesAnterior).equals(codDesActual)) {
+                                cmbMarcas.removeItem(codDesAnterior);
+                                cmbMarcas.addItem(codDesActual);
+                            }
+                        } else if ((boolean) datosFilaActual[2] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Remueve la familia del comboBox xq esta ya no esta activa
+                            cmbMarcas.removeItem(datosFilaActual[0] + " = " + datosFilaActual[1]);
+                        } else if (!(boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
+                            // Ahora esta activo. Agrega el codigo al comboBox de familias
+                            String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            cmbMarcas.addItem(codigo + " = " + descripcion);
+                        }
+                    } else if (modeloActualMantenimiento == modeloImpuesto) {
+                        // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
+                        if ((boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
+                            String codDesAnterior = datosFilaActual[0] + " = " + datosFilaActual[1];
+                            String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            String codDesActual = codigoAct + " = " + descripcionAct;
+                            // Si cambiaron, hay que hacer la modificacion en el comboBox de impuestos
+                            if (!(codDesAnterior).equals(codDesActual)) {
+                                cmbImpuestos.removeItem(codDesAnterior);
+                                cmbImpuestos.addItem(codDesActual);
+                            }
+                            // Obtiene el valor del porcentaje de impuesto nuevo y el anterior
+                            Double porcentajeImpAnt = (Double) datosFilaActual[2];
+                            Double porcentajeImpAct = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 2);
+                            // Verifica si cambio el porcentaje de impuesto, porque implica cambiar el costo de los articulos
+                            if (!porcentajeImpAct.equals(porcentajeImpAnt)) {
+                                ResultSet select = connection.select("cod_articulo, precio_sin_imp, porcentaje_utilidad",
+                                        "\"schinventario\".articulo", "cod_impuesto = '" + codigoAct + "'");
+                                while (select.next()) {
+                                    Double precioSinImp = select.getDouble(2);
+                                    Double utilidad = select.getDouble(3);
+                                    Double costo = precioSinImp * ((porcentajeImpAct / 100) + 1) * ((utilidad / 100) + 1);
+                                    connection.actualizar("\"schinventario\".articulo", "costo = " + costo,
+                                            "cod_articulo = '" + select.getString(1) + "'");
+                                }
+                            }
+                        } else if ((boolean) datosFilaActual[3] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Remueve la familia del comboBox xq esta ya no esta activa
+                            cmbImpuestos.removeItem(datosFilaActual[0] + " = " + datosFilaActual[1]);
+                        } else if (!(boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Ahora esta activo. Agrega el codigo al comboBox de familias
+                            String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            cmbImpuestos.addItem(codigo + " = " + descripcion);
+                        }
+                    } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
+                        // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'tipo de movimientos'
+                        if ((boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
+                            String codDesAnterior = datosFilaActual[0] + " = " + datosFilaActual[1];
+                            String codDesActual = tbl_Tabla.getValueAt(numFilaAnterior, 0)
+                                    + " = " + tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            // Si cambiaron, hay que hacer la modificacion en el comboBox de familias y la tabla articulos
+                            if (!(codDesAnterior).equals(codDesActual)) {
+                                cmbTipoDeMovimiento.removeItem(codDesAnterior);
+                                cmbTipoDeMovimiento.addItem(codDesActual);
+                            }
+                        } else if ((boolean) datosFilaActual[3] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Remueve el tipo de movimiento del comboBox xq esta ya no esta activa
+                            cmbTipoDeMovimiento.removeItem(datosFilaActual[0] + " = " + datosFilaActual[1]);
+                        } else if (!(boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
+                            // Ahora esta activo. Agrega el codigo al comboBox de tipo de movmiento
+                            String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            cmbTipoDeMovimiento.addItem(codigo + " = " + descripcion);
+                        }
+                    } else if (modeloActualMantenimiento == modeloArticulo) {
+                        // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
+                        if ((boolean) datosFilaActual[9] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 9)) {
+                            // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
+                            String codDesAnterior = datosFilaActual[0] + " = " + datosFilaActual[1];
+                            String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            String codDesActual = codigoAct + " = " + descripcionAct;
+                            // Si cambiaron, hay que hacer la modificacion en el comboBox de marcas y la tabla articulos
+                            if (!(codDesAnterior).equals(codDesActual)) {
+                                cmbArticulos.removeItem(codDesAnterior);
+                                cmbArticulos.addItem(codDesActual);
+                            }
+                        } else if ((boolean) datosFilaActual[9] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 9)) {
+                            // Remueve la familia del comboBox xq esta ya no esta activa
+                            cmbArticulos.removeItem(datosFilaActual[0] + " = " + datosFilaActual[1]);
+                        } else if (!(boolean) datosFilaActual[9] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 9)) {
+                            // Ahora esta activo. Agrega el codigo al comboBox de familias
+                            String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
+                            String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
+                            cmbArticulos.addItem(codigo + " = " + descripcion);
+                        }
                     }
-                } else if (modeloActualMantenimiento == modeloMarca) {
-                    // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
-                    if ((boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
-                        String codigoAnt = (String) datosFilaActual[0];
-                        String descripcionAnt = (String) datosFilaActual[1];
-                        String codDesAnterior = codigoAnt + " = " + descripcionAnt;
-                        String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        String codDesActual = codigoAct + " = " + descripcionAct;
-                        // Si cambiaron, hay que hacer la modificacion en el comboBox de marcas y la tabla articulos
-                        if (!(codDesAnterior).equals(codDesActual)) {
-                            cmbMarcas.removeItem(codDesAnterior);
-                            cmbMarcas.addItem(codDesActual);
-                            modificarAparicionesEnCol("articulos", codDesAnterior, codDesActual, 3);
-                        }
-                    } else if ((boolean) datosFilaActual[2] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Remueve la familia del comboBox xq esta ya no esta activa
-                        String codigo = (String) datosFilaActual[0];
-                        String descripcion = (String) datosFilaActual[1];
-                        cmbMarcas.removeItem(codigo + " = " + descripcion);
-                    } else if (!(boolean) datosFilaActual[2] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 2)) {
-                        // Ahora esta activo. Agrega el codigo al comboBox de familias
-                        String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        cmbMarcas.addItem(codigo + " = " + descripcion);
-                    }
-                } else if (modeloActualMantenimiento == modeloImpuesto) {
-                    // Compara el valor que habia con el que hay ahora para ver si hay que hacer cambios en 'articulos'
-                    if ((boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
-                        // Obtiene los valores de codigo y desc anterior y posterior para ver si cambiaron.
-                        String codigoAnt = (String) datosFilaActual[0];
-                        String descripcionAnt = (String) datosFilaActual[1];
-                        String codDesAnterior = codigoAnt + " = " + descripcionAnt;
-                        String codigoAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcionAct = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        String codDesActual = codigoAct + " = " + descripcionAct;
-                        // Si cambiaron, hay que hacer la modificacion en el comboBox de impuestos y la tabla articulos
-                        if (!(codDesAnterior).equals(codDesActual)) {
-                            cmbImpuestos.removeItem(codDesAnterior);
-                            cmbImpuestos.addItem(codDesActual);
-                            modificarAparicionesEnCol("articulos", codDesAnterior, codDesActual, 5);
-                        }
-                        // Obtiene el valor del porcentaje de impuesto nuevo y el anterior
-                        Double porcentajeAnt = (Double) datosFilaActual[2];
-                        Double porcentajeAct = (Double) tbl_Tabla.getValueAt(numFilaAnterior, 2);
-                        // Verifica si cambio el porcentaje de impuesto, porque implica cambiar el costo de los articulos
-                        if (porcentajeAct != porcentajeAnt) {
-                            modificarCostosArticulos(codDesActual, porcentajeAct);
-                        }
+                    // Actualiza los nuevos valores de la fila en el arreglo temporal
+                    valuesFromRowToArray(numFilaAnterior);
+                } else {
+                    // Carga los datos que habia anteriormente
+                    valuesFromArrayToRow();
+                    JOptionPane.showMessageDialog(this, "No es posible realizar la modificación. Se"
+                            + " ha restaurado cada uno de los valores modificados para la fila seleccionada");
+                }
 
-                    } else if ((boolean) datosFilaActual[3] && !(boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
-                        // Remueve la familia del comboBox xq esta ya no esta activa
-                        String codigo = (String) datosFilaActual[0];
-                        String descripcion = (String) datosFilaActual[1];
-                        cmbImpuestos.removeItem(codigo + " = " + descripcion);
-                    } else if (!(boolean) datosFilaActual[3] && (boolean) tbl_Tabla.getValueAt(numFilaAnterior, 3)) {
-                        // Ahora esta activo. Agrega el codigo al comboBox de familias
-                        String codigo = (String) tbl_Tabla.getValueAt(numFilaAnterior, 0);
-                        String descripcion = (String) tbl_Tabla.getValueAt(numFilaAnterior, 1);
-                        cmbImpuestos.addItem(codigo + " = " + descripcion);
-                    }
-                } /*else if(modeloActual == modeloTipoDeMovimiento){
-                    
-                 } else if(modeloActual == modeloArticulo){
-                    
-                 }*/
-
-                System.out.println("Modificación exitosa");
-                // Actualiza los nuevos valores de la fila en el arreglo temporal
-                valuesFromRowToArray();
-            } else {
-                // Carga los datos que habia anteriormente
-                valuesFromArrayToRow();
-                JOptionPane.showMessageDialog(this, "No es posible realizar la modificación. Se"
-                        + " ha restaurado cada uno de los valores modificados para la fila seleccionada");
+            } catch (SQLException ex) {
+                Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+                JOptionPane.showMessageDialog(this, "Ha ocurrido un error al comunicarse con la BD");
+                return;
             }
         } else {
             JOptionPane.showMessageDialog(this, "No se ha seleccionado una fila con datos para actualizarla");
@@ -1457,31 +1499,36 @@ public class Ventana extends javax.swing.JFrame {
      */
     private void Cmb_TablasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_Cmb_TablasActionPerformed
         if (Cmb_Tablas.getSelectedItem() == "Familia") {
-            tbl_Tabla.setModel(modeloFamilia);
+            Lbl_Titulo.setText("Familias");
             modeloActualMantenimiento = modeloFamilia;
-            Lbl_Titulo.setText("Tabla Familia");
+            getDatosForMantenimiento();
+            tbl_Tabla.setModel(modeloFamilia);
         } else if (Cmb_Tablas.getSelectedItem() == "Marca") {
-            tbl_Tabla.setModel(modeloMarca);
+            Lbl_Titulo.setText("Marcas");
             modeloActualMantenimiento = modeloMarca;
-            Lbl_Titulo.setText("Tabla Marca");
+            getDatosForMantenimiento();
+            tbl_Tabla.setModel(modeloMarca);
         } else if (Cmb_Tablas.getSelectedItem() == "Artículo") {
-            tbl_Tabla.setModel(modeloArticulo);
+            Lbl_Titulo.setText("Artículos");
             modeloActualMantenimiento = modeloArticulo;
+            getDatosForMantenimiento();
+            tbl_Tabla.setModel(modeloArticulo);
             // Carga los valores desde un Combobox, para las celdas personalizadas en la tabla articulo
             tbl_Tabla.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(cmbFamilias));
             tbl_Tabla.getColumnModel().getColumn(3).setCellEditor(new DefaultCellEditor(cmbMarcas));
-            tbl_Tabla.getColumnModel().getColumn(5).setCellEditor(new DefaultCellEditor(cmbImpuestos));
-            Lbl_Titulo.setText("Tabla Artículo");
+            tbl_Tabla.getColumnModel().getColumn(6).setCellEditor(new DefaultCellEditor(cmbImpuestos));
         } else if (Cmb_Tablas.getSelectedItem() == "Impuesto") {
-            tbl_Tabla.setModel(modeloImpuesto);
+            Lbl_Titulo.setText("Impuestos");
             modeloActualMantenimiento = modeloImpuesto;
-            Lbl_Titulo.setText("Tabla Impuesto");
+            getDatosForMantenimiento();
+            tbl_Tabla.setModel(modeloImpuesto);
         } else if (Cmb_Tablas.getSelectedItem() == "Tipo de Movimiento de Inventario") {
-            tbl_Tabla.setModel(modeloTipoDeMovimiento);
+            Lbl_Titulo.setText("Tipo de Movimientos de Inventario");
             modeloActualMantenimiento = modeloTipoDeMovimiento;
+            getDatosForMantenimiento();
+            tbl_Tabla.setModel(modeloTipoDeMovimiento);
             // Carga el ComboBox con los datos "Suma, Resta, No aplica", para el campo "tipo de operacion" 
             tbl_Tabla.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(cmbOperacionMovimiento));
-            Lbl_Titulo.setText("Tabla Tipo de Movimiento de Inventario");
         }
     }//GEN-LAST:event_Cmb_TablasActionPerformed
 
@@ -1512,18 +1559,18 @@ public class Ventana extends javax.swing.JFrame {
             /* Verifica si la fila seleccionada no es la ultima, con el fin de almacenar los valores
              originales de la fila en un arreglo*/
             if (numFilaActual != tbl_Tabla.getRowCount() - 1) {
-                valuesFromRowToArray();
+                valuesFromRowToArray(numFilaActual);
                 // Obtiene la Pk de la fila seleccionada
                 pkSelectedRow = (String) tbl_Tabla.getValueAt(numFilaActual, 0);
                 // Cambia el num de fila anterior por el actual. El proximo clic esta será la fila anterior.
                 numFilaAnterior = numFilaActual;
             } else {
                 if (modeloActualMantenimiento == modeloFamilia || modeloActualMantenimiento == modeloMarca) {
-                    tbl_Tabla.setValueAt(true, tbl_Tabla.getRowCount() - 1, 2);
+                    tbl_Tabla.setValueAt(true, numFilaActual, 2);
                 } else if (modeloActualMantenimiento == modeloImpuesto || modeloActualMantenimiento == modeloTipoDeMovimiento) {
-                    tbl_Tabla.setValueAt(true, tbl_Tabla.getRowCount() - 1, 3);
+                    tbl_Tabla.setValueAt(true, numFilaActual, 3);
                 } else if (modeloActualMantenimiento == modeloArticulo) {
-                    tbl_Tabla.setValueAt(true, tbl_Tabla.getRowCount() - 1, 8);
+                    tbl_Tabla.setValueAt(true, numFilaActual, 9);
                 }
                 pkSelectedRow = null;
                 datosFilaActual = null;
@@ -1536,47 +1583,42 @@ public class Ventana extends javax.swing.JFrame {
      * Metodo utilizado para cargar todos los datos de una tupla en un arreglo
      * antes de que se realice alguna modificacion a un campo de esta.
      */
-    private void valuesFromRowToArray() {
-        int filaActual = tbl_Tabla.getSelectedRow();
-
+    private void valuesFromRowToArray(int filaActual) {
         if (modeloActualMantenimiento == modeloFamilia) {
             String codigo = (String) tbl_Tabla.getValueAt(filaActual, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaActual, 1);
             boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 2);
             datosFilaActual = new Object[]{codigo, descripcion, activo};
-
         } else if (modeloActualMantenimiento == modeloMarca) {
             String codigo = (String) tbl_Tabla.getValueAt(filaActual, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaActual, 1);
             boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 2);
             datosFilaActual = new Object[]{codigo, descripcion, activo};
-
         } else if (modeloActualMantenimiento == modeloImpuesto) {
             String codigo = (String) tbl_Tabla.getValueAt(filaActual, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaActual, 1);
             Double porcentaje = (Double) tbl_Tabla.getValueAt(filaActual, 2);
             boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 3);
             datosFilaActual = new Object[]{codigo, descripcion, porcentaje, activo};
-
         } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
             String tipoMovimiento = (String) tbl_Tabla.getValueAt(filaActual, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaActual, 1);
             String tipoOperacion = (String) tbl_Tabla.getValueAt(filaActual, 2);
             boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 3);
             datosFilaActual = new Object[]{tipoMovimiento, descripcion, tipoOperacion, activo};
-
         } else if (modeloActualMantenimiento == modeloArticulo) {
             String codigo = (String) tbl_Tabla.getValueAt(filaActual, 0);
             String descripcion = (String) tbl_Tabla.getValueAt(filaActual, 1);
             String familia = (String) tbl_Tabla.getValueAt(filaActual, 2);
             String marca = (String) tbl_Tabla.getValueAt(filaActual, 3);
-            Double precioSinImp = (Double) tbl_Tabla.getValueAt(filaActual, 4);
-            String impuesto = (String) tbl_Tabla.getValueAt(filaActual, 5);
-            Double utilidad = (Double) tbl_Tabla.getValueAt(filaActual, 6);
-            Double costo = (Double) tbl_Tabla.getValueAt(filaActual, 7);
-            boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 8);
+            Double existencia = (Double) tbl_Tabla.getValueAt(filaActual, 4);
+            Double precioSinImp = (Double) tbl_Tabla.getValueAt(filaActual, 5);
+            String impuesto = (String) tbl_Tabla.getValueAt(filaActual, 6);
+            Double utilidad = (Double) tbl_Tabla.getValueAt(filaActual, 7);
+            Double costo = (Double) tbl_Tabla.getValueAt(filaActual, 8);
+            boolean activo = (boolean) tbl_Tabla.getValueAt(filaActual, 9);
             datosFilaActual = new Object[]{codigo, descripcion, familia, marca,
-                precioSinImp, impuesto, utilidad, costo, activo};
+                existencia, precioSinImp, impuesto, utilidad, costo, activo};
         }
     }
 
@@ -1590,34 +1632,31 @@ public class Ventana extends javax.swing.JFrame {
             tbl_Tabla.setValueAt((String) datosFilaActual[0], numFilaAnterior, 0);
             tbl_Tabla.setValueAt((String) datosFilaActual[1], numFilaAnterior, 1);
             tbl_Tabla.setValueAt((boolean) datosFilaActual[2], numFilaAnterior, 2);
-
         } else if (modeloActualMantenimiento == modeloMarca) {
             tbl_Tabla.setValueAt((String) datosFilaActual[0], numFilaAnterior, 0);
             tbl_Tabla.setValueAt((String) datosFilaActual[1], numFilaAnterior, 1);
             tbl_Tabla.setValueAt((boolean) datosFilaActual[2], numFilaAnterior, 2);
-
         } else if (modeloActualMantenimiento == modeloImpuesto) {
             tbl_Tabla.setValueAt((String) datosFilaActual[0], numFilaAnterior, 0);
             tbl_Tabla.setValueAt((String) datosFilaActual[1], numFilaAnterior, 1);
             tbl_Tabla.setValueAt((Double) datosFilaActual[2], numFilaAnterior, 2);
             tbl_Tabla.setValueAt((boolean) datosFilaActual[3], numFilaAnterior, 3);
-
         } else if (modeloActualMantenimiento == modeloTipoDeMovimiento) {
             tbl_Tabla.setValueAt((String) datosFilaActual[0], numFilaAnterior, 0);
             tbl_Tabla.setValueAt((String) datosFilaActual[1], numFilaAnterior, 1);
             tbl_Tabla.setValueAt((String) datosFilaActual[2], numFilaAnterior, 2);
             tbl_Tabla.setValueAt((boolean) datosFilaActual[3], numFilaAnterior, 3);
-
         } else if (modeloActualMantenimiento == modeloArticulo) {
             tbl_Tabla.setValueAt((String) datosFilaActual[0], numFilaAnterior, 0);
             tbl_Tabla.setValueAt((String) datosFilaActual[1], numFilaAnterior, 1);
             tbl_Tabla.setValueAt((String) datosFilaActual[2], numFilaAnterior, 2);
             tbl_Tabla.setValueAt((String) datosFilaActual[3], numFilaAnterior, 3);
             tbl_Tabla.setValueAt((Double) datosFilaActual[4], numFilaAnterior, 4);
-            tbl_Tabla.setValueAt((String) datosFilaActual[5], numFilaAnterior, 5);
-            tbl_Tabla.setValueAt((Double) datosFilaActual[6], numFilaAnterior, 6);
+            tbl_Tabla.setValueAt((Double) datosFilaActual[5], numFilaAnterior, 5);
+            tbl_Tabla.setValueAt((String) datosFilaActual[6], numFilaAnterior, 6);
             tbl_Tabla.setValueAt((Double) datosFilaActual[7], numFilaAnterior, 7);
-            tbl_Tabla.setValueAt((boolean) datosFilaActual[8], numFilaAnterior, 8);
+            tbl_Tabla.setValueAt((Double) datosFilaActual[8], numFilaAnterior, 8);
+            tbl_Tabla.setValueAt((boolean) datosFilaActual[9], numFilaAnterior, 9);
         }
     }
 
@@ -2179,6 +2218,13 @@ public class Ventana extends javax.swing.JFrame {
 
     }//GEN-LAST:event_Btn_AnularActionPerformed
 
+    private void jTabbedPane1StateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_jTabbedPane1StateChanged
+        ((DefaultTableModel) tbl_detalleTomaMovimiento.getModel()).setRowCount(0);
+        tbl_tomaMovimiento.clearSelection();
+        this.selectedRowTomaMovimiento = -1;
+        this.selectedRowDetalleTomaMov = -1;
+    }//GEN-LAST:event_jTabbedPane1StateChanged
+
     /**
      * @param args the command line arguments
      */
@@ -2229,15 +2275,22 @@ public class Ventana extends javax.swing.JFrame {
     private javax.swing.JPanel Pnl_Mantenimiento;
     private javax.swing.JRadioButton Rdb_movimientoInventario;
     private javax.swing.JRadioButton Rdb_tomaFisica;
+    private javax.swing.ButtonGroup Rdg_Consultas;
     private javax.swing.ButtonGroup Rdg_Procesos;
     private javax.swing.JButton btn_CrearTomaMovimiento;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLayeredPane jLayeredPane1;
+    private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JTabbedPane jTabbedPane1;
+    private javax.swing.JTable jTable1;
+    private javax.swing.JRadioButton rdb_PorExistencia;
+    private javax.swing.JRadioButton rdb_PorMovimiento;
     private javax.swing.JTable tbl_Tabla;
     private javax.swing.JTable tbl_detalleTomaMovimiento;
     private javax.swing.JTable tbl_tomaMovimiento;
