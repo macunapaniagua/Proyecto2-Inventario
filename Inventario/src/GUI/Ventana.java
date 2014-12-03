@@ -6,10 +6,13 @@
 package GUI;
 
 import Codigo.Conexion;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -17,6 +20,7 @@ import javax.swing.DefaultCellEditor;
 import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
 /**
  *
@@ -37,6 +41,9 @@ public class Ventana extends javax.swing.JFrame {
     private DefaultTableModel modeloDetalleTomaFisica;
     private DefaultTableModel modeloMovimientoInventario;
     private DefaultTableModel modeloDetalleMovimientoInventario;
+    // Modelos Tablas Consultas
+    private DefaultTableModel modeloArticuloConsulta;
+    private DefaultTableModel modeloMovimientoConsulta;
     // ComboBox utilizado para seleccionar los elementos existentes en cierta tabla
     private JComboBox<String> cmbFamilias;
     private JComboBox<String> cmbMarcas;
@@ -47,6 +54,7 @@ public class Ventana extends javax.swing.JFrame {
 
     private int selectedRowTomaMovimiento = -1;
     private int selectedRowDetalleTomaMov = -1;
+    private boolean rdbPorExistenciaSelected = true;
 
     // Arreglo para almacenar los datos de una fila, antes de modificarse algun compo de esta
     private Object[] datosFilaActual = null;
@@ -66,8 +74,6 @@ public class Ventana extends javax.swing.JFrame {
         // Agrega los radio butons de consultas al radioGrup
         Rdg_Consultas.add(rdb_PorExistencia);
         Rdg_Consultas.add(rdb_PorMovimiento);
-        // Inhabilito el boton que ya esta seleccionado (tomaFisica)
-        Rdb_tomaFisica.setEnabled(false);
 
         // Se crea la conexion con la base de datos
         try {
@@ -80,6 +86,7 @@ public class Ventana extends javax.swing.JFrame {
 
         cargarDatosComboBoxs();
         inicializarModelos();
+        hideShowComponents();
     }
 
     /**
@@ -133,6 +140,11 @@ public class Ventana extends javax.swing.JFrame {
             while (respuestaSelect.next()) {
                 cmbArticulos.addItem(respuestaSelect.getString(1) + " = " + respuestaSelect.getString(2));
             }
+
+            // Le establece el mismo modelo a los comboBox de consultas, con los de la tabla articulo
+            cmbFamiliaConsulta.setModel(cmbFamilias.getModel());
+            cmbMarcaConsulta.setModel(cmbMarcas.getModel());
+            cmbTipoMovimientoConsulta.setModel(cmbTipoDeMovimiento.getModel());
 
         } catch (SQLException ex) {
             Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
@@ -319,7 +331,10 @@ public class Ventana extends javax.swing.JFrame {
                 return types[columnIndex];
             }
         };
-
+        // Se asignan los modelos para la tabla Consulta
+        modeloArticuloConsulta = (DefaultTableModel) tblConsultaArticulo.getModel();
+        modeloMovimientoConsulta = (DefaultTableModel) tblConsultaMovimiento.getModel();
+        ScrConsultaMovimiento.setVisible(false);
         // Se establece el modelo y se carga los datos
         modeloActualMantenimiento = modeloFamilia;
         getDatosForMantenimiento();
@@ -542,7 +557,7 @@ public class Ventana extends javax.swing.JFrame {
         Lbl_Titulo = new javax.swing.JLabel();
         Cmb_Tablas = new javax.swing.JComboBox();
         jLabel1 = new javax.swing.JLabel();
-        jLayeredPane1 = new javax.swing.JLayeredPane();
+        PnlProcesos = new javax.swing.JLayeredPane();
         Rdb_tomaFisica = new javax.swing.JRadioButton();
         Rdb_movimientoInventario = new javax.swing.JRadioButton();
         jLabel3 = new javax.swing.JLabel();
@@ -555,13 +570,29 @@ public class Ventana extends javax.swing.JFrame {
         Btn_aplicar = new javax.swing.JButton();
         Btn_Salvar = new javax.swing.JButton();
         Btn_CrearDetalle = new javax.swing.JButton();
-        Pnl_Consultas = new javax.swing.JPanel();
-        rdb_PorExistencia = new javax.swing.JRadioButton();
+        PnlConsultas = new javax.swing.JLayeredPane();
         rdb_PorMovimiento = new javax.swing.JRadioButton();
+        rdb_PorExistencia = new javax.swing.JRadioButton();
         jLabel2 = new javax.swing.JLabel();
-        jScrollPane2 = new javax.swing.JScrollPane();
-        jTable1 = new javax.swing.JTable();
+        ScrConsultaArticulo = new javax.swing.JScrollPane();
+        tblConsultaArticulo = new javax.swing.JTable();
+        ScrConsultaMovimiento = new javax.swing.JScrollPane();
+        tblConsultaMovimiento = new javax.swing.JTable();
         jPanel1 = new javax.swing.JPanel();
+        jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        lblArticuloConsulta = new javax.swing.JLabel();
+        lblTipoMovConsulta = new javax.swing.JLabel();
+        cmbTipoMovimientoConsulta = new javax.swing.JComboBox();
+        BtnFiltrar = new javax.swing.JButton();
+        txtCodFamConsulta = new javax.swing.JTextField();
+        txtDescFamConsulta = new javax.swing.JTextField();
+        cmbFamiliaConsulta = new javax.swing.JComboBox();
+        txtCodMarcaConsulta = new javax.swing.JTextField();
+        txtDescMarcaConsulta = new javax.swing.JTextField();
+        cmbMarcaConsulta = new javax.swing.JComboBox();
+        txtCodArtConsulta = new javax.swing.JTextField();
+        txtDescArtConsulta = new javax.swing.JTextField();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Inventario");
@@ -675,7 +706,7 @@ public class Ventana extends javax.swing.JFrame {
                 .addGap(18, 18, 18)
                 .addComponent(Lbl_Titulo, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 407, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 465, Short.MAX_VALUE)
                 .addGap(34, 34, 34)
                 .addGroup(Pnl_MantenimientoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(Btn_Insertar, javax.swing.GroupLayout.DEFAULT_SIZE, 37, Short.MAX_VALUE)
@@ -686,11 +717,12 @@ public class Ventana extends javax.swing.JFrame {
 
         jTabbedPane1.addTab("Mantenimiento", Pnl_Mantenimiento);
 
-        jLayeredPane1.setOpaque(true);
+        PnlProcesos.setOpaque(true);
 
         Rdb_tomaFisica.setForeground(new java.awt.Color(0, 153, 0));
         Rdb_tomaFisica.setSelected(true);
         Rdb_tomaFisica.setText("Toma física");
+        Rdb_tomaFisica.setEnabled(false);
         Rdb_tomaFisica.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 Rdb_tomaFisicaActionPerformed(evt);
@@ -783,17 +815,17 @@ public class Ventana extends javax.swing.JFrame {
             }
         });
 
-        javax.swing.GroupLayout jLayeredPane1Layout = new javax.swing.GroupLayout(jLayeredPane1);
-        jLayeredPane1.setLayout(jLayeredPane1Layout);
-        jLayeredPane1Layout.setHorizontalGroup(
-            jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jLayeredPane1Layout.createSequentialGroup()
+        javax.swing.GroupLayout PnlProcesosLayout = new javax.swing.GroupLayout(PnlProcesos);
+        PnlProcesos.setLayout(PnlProcesosLayout);
+        PnlProcesosLayout.setHorizontalGroup(
+            PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(PnlProcesosLayout.createSequentialGroup()
                 .addGap(37, 37, 37)
-                .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                    .addGroup(jLayeredPane1Layout.createSequentialGroup()
-                        .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jLayeredPane1Layout.createSequentialGroup()
+                    .addGroup(PnlProcesosLayout.createSequentialGroup()
+                        .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(PnlProcesosLayout.createSequentialGroup()
                                 .addGap(21, 21, 21)
                                 .addComponent(Btn_aplicar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -801,7 +833,7 @@ public class Ventana extends javax.swing.JFrame {
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addComponent(btn_CrearTomaMovimiento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addGap(21, 21, 21))
-                            .addGroup(jLayeredPane1Layout.createSequentialGroup()
+                            .addGroup(PnlProcesosLayout.createSequentialGroup()
                                 .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addComponent(Rdb_tomaFisica, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -809,8 +841,8 @@ public class Ventana extends javax.swing.JFrame {
                                 .addComponent(Rdb_movimientoInventario, javax.swing.GroupLayout.PREFERRED_SIZE, 165, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(3, 3, 3)))
                 .addGap(39, 39, 39)
-                .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jLayeredPane1Layout.createSequentialGroup()
+                .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(PnlProcesosLayout.createSequentialGroup()
                         .addGap(119, 119, 119)
                         .addComponent(Btn_Salvar, javax.swing.GroupLayout.DEFAULT_SIZE, 175, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -819,21 +851,21 @@ public class Ventana extends javax.swing.JFrame {
                     .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 610, Short.MAX_VALUE))
                 .addGap(31, 31, 31))
         );
-        jLayeredPane1Layout.setVerticalGroup(
-            jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jLayeredPane1Layout.createSequentialGroup()
+        PnlProcesosLayout.setVerticalGroup(
+            PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(PnlProcesosLayout.createSequentialGroup()
                 .addGap(36, 36, 36)
-                .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(Rdb_tomaFisica)
                         .addComponent(Rdb_movimientoInventario)))
                 .addGap(43, 43, 43)
-                .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 410, Short.MAX_VALUE)
+                .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 468, Short.MAX_VALUE)
                     .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
                 .addGap(18, 18, 18)
-                .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(PnlProcesosLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btn_CrearTomaMovimiento, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(Btn_Salvar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(Btn_CrearDetalle, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -842,91 +874,181 @@ public class Ventana extends javax.swing.JFrame {
                 .addGap(87, 87, 87))
         );
 
-        jLayeredPane1Layout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {Rdb_movimientoInventario, Rdb_tomaFisica, jLabel3});
+        PnlProcesosLayout.linkSize(javax.swing.SwingConstants.VERTICAL, new java.awt.Component[] {Rdb_movimientoInventario, Rdb_tomaFisica, jLabel3});
 
-        jLayeredPane1.setLayer(Rdb_tomaFisica, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(Rdb_movimientoInventario, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(jLabel3, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(jScrollPane4, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(jScrollPane5, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(btn_CrearTomaMovimiento, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(Btn_Anular, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(Btn_aplicar, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(Btn_Salvar, javax.swing.JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane1.setLayer(Btn_CrearDetalle, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Rdb_tomaFisica, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Rdb_movimientoInventario, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(jLabel3, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(jScrollPane4, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(jScrollPane5, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(btn_CrearTomaMovimiento, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Btn_Anular, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Btn_aplicar, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Btn_Salvar, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlProcesos.setLayer(Btn_CrearDetalle, javax.swing.JLayeredPane.DEFAULT_LAYER);
 
-        jTabbedPane1.addTab("Procesos", jLayeredPane1);
+        jTabbedPane1.addTab("Procesos", PnlProcesos);
 
-        rdb_PorExistencia.setText("Por existencia");
+        PnlConsultas.setOpaque(true);
 
         rdb_PorMovimiento.setText("Por movimiento de inventario");
+        rdb_PorMovimiento.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                rdb_PorMovimientoActionPerformed(evt);
+            }
+        });
+
+        rdb_PorExistencia.setSelected(true);
+        rdb_PorExistencia.setText("Por existencia");
+        rdb_PorExistencia.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                rdb_PorExistenciaActionPerformed(evt);
+            }
+        });
 
         jLabel2.setText("Seleccione el tipo de consulta a realizar");
 
-        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+        tblConsultaArticulo.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null, null},
-                {null, null, null, null},
-                {null, null, null, null},
-                {null, null, null, null}
+
             },
             new String [] {
-                "Title 1", "Title 2", "Title 3", "Title 4"
+                "Código", "Descripción", "Familia", "Marca", "Existencia", "Costo", "Valor de Existencias"
             }
-        ));
-        jScrollPane2.setViewportView(jTable1);
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false, false
+            };
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 0, Short.MAX_VALUE)
-        );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 139, Short.MAX_VALUE)
-        );
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        ScrConsultaArticulo.setViewportView(tblConsultaArticulo);
 
-        javax.swing.GroupLayout Pnl_ConsultasLayout = new javax.swing.GroupLayout(Pnl_Consultas);
-        Pnl_Consultas.setLayout(Pnl_ConsultasLayout);
-        Pnl_ConsultasLayout.setHorizontalGroup(
-            Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
-                .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
-                        .addGap(37, 37, 37)
-                        .addComponent(jLabel2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(rdb_PorMovimiento)
-                            .addComponent(rdb_PorExistencia)))
-                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
-                        .addGap(21, 21, 21)
-                        .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 1070, Short.MAX_VALUE)
-                            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
-                .addContainerGap(21, Short.MAX_VALUE))
+        tblConsultaMovimiento.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "Nº Documento", "Nº Línea", "Artículo", "Tipo Movimiento", "Existencia Previa", "Costo", "Cantidad", "Saldo General"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        ScrConsultaMovimiento.setViewportView(tblConsultaMovimiento);
+
+        jPanel1.setBorder(javax.swing.BorderFactory.createEtchedBorder());
+        jPanel1.setPreferredSize(new java.awt.Dimension(701, 95));
+        jPanel1.setLayout(null);
+
+        jLabel4.setText("Familias");
+        jPanel1.add(jLabel4);
+        jLabel4.setBounds(109, 30, 37, 20);
+
+        jLabel5.setText("Marca");
+        jPanel1.add(jLabel5);
+        jLabel5.setBounds(109, 70, 29, 20);
+
+        lblArticuloConsulta.setText("Artículo");
+        jPanel1.add(lblArticuloConsulta);
+        lblArticuloConsulta.setBounds(430, 30, 36, 20);
+
+        lblTipoMovConsulta.setText("Tipo de Movimiento");
+        jPanel1.add(lblTipoMovConsulta);
+        lblTipoMovConsulta.setBounds(430, 70, 92, 20);
+
+        cmbTipoMovimientoConsulta.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        cmbTipoMovimientoConsulta.setFocusable(false);
+        jPanel1.add(cmbTipoMovimientoConsulta);
+        cmbTipoMovimientoConsulta.setBounds(540, 70, 190, 20);
+
+        BtnFiltrar.setText("Filtrar");
+        BtnFiltrar.setFocusable(false);
+        BtnFiltrar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                BtnFiltrarActionPerformed(evt);
+            }
+        });
+        jPanel1.add(BtnFiltrar);
+        BtnFiltrar.setBounds(408, 70, 98, 23);
+        jPanel1.add(txtCodFamConsulta);
+        txtCodFamConsulta.setBounds(176, 30, 60, 20);
+        jPanel1.add(txtDescFamConsulta);
+        txtDescFamConsulta.setBounds(250, 30, 120, 20);
+
+        cmbFamiliaConsulta.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        cmbFamiliaConsulta.setSelectedIndex(-1);
+        cmbFamiliaConsulta.setFocusable(false);
+        jPanel1.add(cmbFamiliaConsulta);
+        cmbFamiliaConsulta.setBounds(176, 30, 169, 20);
+        jPanel1.add(txtCodMarcaConsulta);
+        txtCodMarcaConsulta.setBounds(176, 70, 60, 20);
+        jPanel1.add(txtDescMarcaConsulta);
+        txtDescMarcaConsulta.setBounds(250, 70, 120, 20);
+
+        cmbMarcaConsulta.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        cmbMarcaConsulta.setSelectedIndex(-1);
+        cmbMarcaConsulta.setFocusable(false);
+        jPanel1.add(cmbMarcaConsulta);
+        cmbMarcaConsulta.setBounds(176, 70, 169, 20);
+        jPanel1.add(txtCodArtConsulta);
+        txtCodArtConsulta.setBounds(540, 30, 60, 20);
+        jPanel1.add(txtDescArtConsulta);
+        txtDescArtConsulta.setBounds(610, 30, 120, 20);
+
+        javax.swing.GroupLayout PnlConsultasLayout = new javax.swing.GroupLayout(PnlConsultas);
+        PnlConsultas.setLayout(PnlConsultasLayout);
+        PnlConsultasLayout.setHorizontalGroup(
+            PnlConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(PnlConsultasLayout.createSequentialGroup()
+                .addGap(37, 37, 37)
+                .addComponent(jLabel2)
+                .addGap(6, 6, 6)
+                .addComponent(rdb_PorExistencia))
+            .addGroup(PnlConsultasLayout.createSequentialGroup()
+                .addGap(230, 230, 230)
+                .addComponent(rdb_PorMovimiento))
+            .addGroup(PnlConsultasLayout.createSequentialGroup()
+                .addGap(21, 21, 21)
+                .addGroup(PnlConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, 1070, Short.MAX_VALUE)
+                    .addComponent(ScrConsultaArticulo)
+                    .addComponent(ScrConsultaMovimiento))
+                .addGap(21, 21, 21))
         );
-        Pnl_ConsultasLayout.setVerticalGroup(
-            Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
-                .addGroup(Pnl_ConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
+        PnlConsultasLayout.setVerticalGroup(
+            PnlConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(PnlConsultasLayout.createSequentialGroup()
+                .addGap(25, 25, 25)
+                .addGroup(PnlConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(PnlConsultasLayout.createSequentialGroup()
                         .addGap(25, 25, 25)
-                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(Pnl_ConsultasLayout.createSequentialGroup()
-                        .addGap(50, 50, 50)
-                        .addComponent(rdb_PorExistencia)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(rdb_PorMovimiento)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 6, Short.MAX_VALUE)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 331, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(rdb_PorExistencia)))
+                .addComponent(rdb_PorMovimiento)
+                .addGap(18, 18, 18)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(6, 6, 6)
+                .addGroup(PnlConsultasLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(ScrConsultaArticulo, javax.swing.GroupLayout.DEFAULT_SIZE, 380, Short.MAX_VALUE)
+                    .addComponent(ScrConsultaMovimiento, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
                 .addGap(64, 64, 64))
         );
+        PnlConsultas.setLayer(rdb_PorMovimiento, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlConsultas.setLayer(rdb_PorExistencia, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlConsultas.setLayer(jLabel2, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlConsultas.setLayer(ScrConsultaArticulo, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlConsultas.setLayer(ScrConsultaMovimiento, javax.swing.JLayeredPane.DEFAULT_LAYER);
+        PnlConsultas.setLayer(jPanel1, javax.swing.JLayeredPane.DEFAULT_LAYER);
 
-        jTabbedPane1.addTab("Consultas", Pnl_Consultas);
+        jTabbedPane1.addTab("Consultas", PnlConsultas);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -2226,6 +2348,376 @@ public class Ventana extends javax.swing.JFrame {
     }//GEN-LAST:event_jTabbedPane1StateChanged
 
     /**
+     * Metodo utilizado para esconder y aparecer componentes de la ventana
+     * consulta
+     */
+    private void hideShowComponents() {
+        if (rdbPorExistenciaSelected) {
+            BtnFiltrar.setLocation(400, 70);
+            ScrConsultaMovimiento.setVisible(false);
+            ScrConsultaArticulo.setVisible(true);
+            lblTipoMovConsulta.setVisible(false);
+            cmbTipoMovimientoConsulta.setVisible(false);
+            lblArticuloConsulta.setVisible(false);
+            txtCodArtConsulta.setVisible(false);
+            txtDescArtConsulta.setVisible(false);
+            txtCodFamConsulta.setVisible(false);
+            txtDescFamConsulta.setVisible(false);
+            cmbFamiliaConsulta.setVisible(true);
+            txtCodMarcaConsulta.setVisible(false);
+            txtDescMarcaConsulta.setVisible(false);
+            cmbMarcaConsulta.setVisible(true);
+            cmbMarcaConsulta.setSelectedIndex(-1);
+            cmbFamiliaConsulta.setSelectedIndex(-1);
+        } else {
+            BtnFiltrar.setLocation(780, 70);
+            ScrConsultaMovimiento.setVisible(true);
+            ScrConsultaArticulo.setVisible(false);
+            lblTipoMovConsulta.setVisible(true);
+            cmbTipoMovimientoConsulta.setVisible(true);
+            lblArticuloConsulta.setVisible(true);
+            txtCodArtConsulta.setVisible(true);
+            txtDescArtConsulta.setVisible(true);
+            txtCodFamConsulta.setVisible(true);
+            txtDescFamConsulta.setVisible(true);
+            cmbFamiliaConsulta.setVisible(false);
+            txtCodMarcaConsulta.setVisible(true);
+            txtDescMarcaConsulta.setVisible(true);
+            cmbMarcaConsulta.setVisible(false);
+            cmbTipoDeMovimiento.setSelectedIndex(-1);
+        }
+    }
+
+    /**
+     * Metodo utilizado para cambiar los componentes al seleccionar consulta por
+     * existencia
+     *
+     * @param evt
+     */
+    private void rdb_PorExistenciaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rdb_PorExistenciaActionPerformed
+        if (!rdbPorExistenciaSelected) {
+            rdbPorExistenciaSelected = true;
+            hideShowComponents();
+        }
+    }//GEN-LAST:event_rdb_PorExistenciaActionPerformed
+
+    /**
+     * Metodo utilizado para cambiar los componentes al seleccionar consulta por
+     * movimiento de inventario
+     *
+     * @param evt
+     */
+    private void rdb_PorMovimientoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rdb_PorMovimientoActionPerformed
+        if (rdbPorExistenciaSelected) {
+            rdbPorExistenciaSelected = false;
+            hideShowComponents();
+        }
+    }//GEN-LAST:event_rdb_PorMovimientoActionPerformed
+
+    /**
+     * Metodo que carga los datos de la consulta cuando se presiona el boton
+     *
+     * @param evt
+     */
+    private void BtnFiltrarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BtnFiltrarActionPerformed
+        String condicion = "";
+        // Verifica con que tipo de consulta se trabaja
+        if (rdbPorExistenciaSelected) {
+            // Elimina todas las filas de la tabla
+            modeloArticuloConsulta.setRowCount(0);
+            // Se filtra por familia y por marca
+            if (cmbFamiliaConsulta.getSelectedIndex() != -1 && cmbMarcaConsulta.getSelectedIndex() != -1) {
+                String familia = cmbFamiliaConsulta.getSelectedItem() + "";
+                String codFamilia = familia.substring(0, familia.indexOf(" = "));
+                String marca = cmbMarcaConsulta.getSelectedItem() + "";
+                String codMarca = marca.substring(0, marca.indexOf(" = "));
+                condicion = "cod_familia = '" + codFamilia + "' and cod_marca='" + codMarca + "'";
+            } // Se filtra por familia 
+            else if (cmbFamiliaConsulta.getSelectedIndex() != -1 && cmbMarcaConsulta.getSelectedIndex() == -1) {
+                String familia = cmbFamiliaConsulta.getSelectedItem() + "";
+                String codFamilia = familia.substring(0, familia.indexOf(" = "));
+                condicion = "cod_familia = '" + codFamilia + "'";
+            } // Se filtra por marca 
+            else if (cmbFamiliaConsulta.getSelectedIndex() == -1 && cmbMarcaConsulta.getSelectedIndex() != -1) {
+                String marca = cmbMarcaConsulta.getSelectedItem() + "";
+                String codMarca = marca.substring(0, marca.indexOf(" = "));
+                condicion = "cod_marca='" + codMarca + "'";
+            }
+            // Se manda a cargar los datos en la tabla de acuerdo al criterio de busqueda
+            consultar(condicion);
+
+        } else {
+            // Elimina todas las filas de la tabla
+            modeloMovimientoConsulta.setRowCount(0);
+            // Se obtiene la consulta para el tipo de movimiento
+            if (cmbTipoMovimientoConsulta.getSelectedIndex() != -1) {
+                String tipoMovimiento = (String) cmbTipoMovimientoConsulta.getSelectedItem();
+                String codTipoMov = tipoMovimiento.substring(0, tipoMovimiento.indexOf(" = "));
+                condicion = "tipo_movimiento = '" + codTipoMov + "'";
+            }
+            // Se genera el filtro para el codigo del articulo
+            if (!txtCodArtConsulta.getText().isEmpty()) {
+                // Verifica si hay una condicion ya establecida para agregar el resto
+                if (!condicion.isEmpty()) {
+                    condicion += " and lower(cod_articulo) = '" + txtCodArtConsulta.getText().toLowerCase() + "'";
+                } else {
+                    condicion = "lower(cod_articulo) = '" + txtCodArtConsulta.getText().toLowerCase() + "'";
+                }
+            }
+            // Result set para realizar las consultas y obtener el articulo que cumpla con la condicion
+            ResultSet select;
+            String sch = "\"schinventario\".";
+            try {
+                // Se genera el filtro para la descripcion del articulo
+                if (!txtDescArtConsulta.getText().isEmpty()) {
+                    String condicion2 = "";
+                    String descArticulo = txtDescArtConsulta.getText().toLowerCase();
+                    // Se realiza un select para obtener todos los articulos que pertenecen a la descripcion dada
+                    select = connection.select("lower(cod_articulo)", sch + "articulo", "lower(descripcion) LIKE '%" + descArticulo + "%'");
+                    while (select.next()) {
+                        if (condicion2.isEmpty()) {
+                            condicion2 = "(lower(cod_articulo) = '" + select.getString(1) + "'";
+                        } else {
+                            condicion2 += " or lower(cod_articulo) = '" + select.getString(1) + "'";
+                        }
+                    }
+                    // Agrego el parentecis de cierre a la condicion si hay coincidencias o no ejecuta la busqueda si no hay
+                    if (!condicion2.isEmpty()) {
+                        condicion2 += ")";
+                    } else {
+                        limpiarCamposConsulta();
+                        return;
+                    }
+                    // Verifica si hay una condicion ya establecida para agregar el resto
+                    if (!condicion.isEmpty()) {
+                        condicion += " and " + condicion2;
+                    } else {
+                        condicion = condicion2;
+                    }
+                }
+                // Se genera el filtro para el codigo de la marca
+                if (!txtCodMarcaConsulta.getText().isEmpty()) {
+                    String condicion2 = "";
+                    String codMarca = txtCodMarcaConsulta.getText().toLowerCase();
+                    // Se realiza un select para obtener todos los articulos que pertenecen a la marca indicada
+                    select = connection.select("lower(cod_articulo)", sch + "articulo", "lower(cod_marca) = '" + codMarca + "'");
+                    while (select.next()) {
+                        if (condicion2.isEmpty()) {
+                            condicion2 = "(lower(cod_articulo) = '" + select.getString(1) + "'";
+                        } else {
+                            condicion2 += " or lower(cod_articulo) = '" + select.getString(1) + "'";
+                        }
+                    }
+                    // Agrego el parentecis de cierre a la condicion si hay coincidencias o no ejecuta la busqueda si no hay
+                    if (!condicion2.isEmpty()) {
+                        condicion2 += ")";
+                    } else {
+                        limpiarCamposConsulta();
+                        return;
+                    }
+                    // Verifica si hay una condicion ya establecida para agregar el resto
+                    if (!condicion.isEmpty()) {
+                        condicion += " and " + condicion2;
+                    } else {
+                        condicion = condicion2;
+                    }
+                }
+                // Se genera el filtro para el codigo de la familia
+                if (!txtCodFamConsulta.getText().isEmpty()) {
+                    String condicion2 = "";
+                    String codFamilia = txtCodFamConsulta.getText().toLowerCase();
+                    // Se realiza un select para obtener todos los articulos que pertenecen a la familia indicada
+                    select = connection.select("lower(cod_articulo)", sch + "articulo", "lower(cod_familia) = '" + codFamilia + "'");
+                    while (select.next()) {
+                        if (condicion2.isEmpty()) {
+                            condicion2 = "(lower(cod_articulo) = '" + select.getString(1) + "'";
+                        } else {
+                            condicion2 += " or lower(cod_articulo) = '" + select.getString(1) + "'";
+                        }
+                    }
+                    // Agrego el parentecis de cierre a la condicion si hay coincidencias o no ejecuta la busqueda si no hay
+                    if (!condicion2.isEmpty()) {
+                        condicion2 += ")";
+                    } else {
+                        limpiarCamposConsulta();
+                        return;
+                    }
+                    // Verifica si hay una condicion ya establecida para agregar el resto
+                    if (!condicion.isEmpty()) {
+                        condicion += " and " + condicion2;
+                    } else {
+                        condicion = condicion2;
+                    }
+                }
+                // Se genera el filtro para la descripcion de la familia
+                if (!txtDescFamConsulta.getText().isEmpty()) {
+                    String condicion2 = "";
+                    String descFamilia = txtDescFamConsulta.getText().toLowerCase();
+                    // Se obtienen todos los codigos de las familias que cumplen con la descripcion
+                    select = connection.select("cod_familia", sch + "familia_articulo",
+                            "lower(descripcion) like '%" + descFamilia + "%'");
+                    while (select.next()) {
+                        String codFamilia = select.getString(1);
+                        // Se ejecuta un select para obtener todos los articulos que pertenecen a la familia analizada
+                        ResultSet select2 = connection.select("cod_articulo", sch + "articulo", 
+                                "cod_familia = '" + codFamilia + "'");
+                        while (select2.next()) {
+                            if (condicion2.isEmpty()) {
+                                condicion2 = "(cod_articulo = '" + select2.getString(1) + "'";
+                            } else {
+                                condicion2 += " or cod_articulo = '" + select2.getString(1) + "'";
+                            }
+                        }                        
+                    }
+                    // Agrego el parentecis de cierre a la condicion si hay coincidencias o no ejecuta la busqueda si no hay
+                    if (!condicion2.isEmpty()) {
+                        condicion2 += ")";
+                    } else {
+                        limpiarCamposConsulta();
+                        return;
+                    }
+                    // Verifica si hay una condicion ya establecida para agregar el resto
+                    if (!condicion.isEmpty()) {
+                        condicion += " and " + condicion2;
+                    } else {
+                        condicion = condicion2;
+                    }
+                }
+                // Se genera el filtro para la descripcion de la marca
+                if (!txtDescMarcaConsulta.getText().isEmpty()) {
+                    String condicion2 = "";
+                    String descMarca = txtDescMarcaConsulta.getText().toLowerCase();
+                    // Se obtienen todos los codigos de las marcas que cumplen con la descripcion
+                    select = connection.select("cod_marca", sch + "marca_articulo",
+                            "lower(descripcion) like '%" + descMarca + "%'");
+                    while (select.next()) {
+                        String codMarca = select.getString(1);
+                        // Se ejecuta un select para obtener todos los articulos que pertenecen a la marca analizada
+                        ResultSet select2 = connection.select("cod_articulo", sch + "articulo", 
+                                "cod_marca = '" + codMarca + "'");
+                        while (select2.next()) {
+                            if (condicion2.isEmpty()) {
+                                condicion2 = "(cod_articulo = '" + select2.getString(1) + "'";
+                            } else {
+                                condicion2 += " or cod_articulo = '" + select2.getString(1) + "'";
+                            }
+                        }                        
+                    }
+                    // Agrego el parentecis de cierre a la condicion si hay coincidencias o no ejecuta la busqueda si no hay
+                    if (!condicion2.isEmpty()) {
+                        condicion2 += ")";
+                    } else {
+                        limpiarCamposConsulta();
+                        return;
+                    }
+                    // Verifica si hay una condicion ya establecida para agregar el resto
+                    if (!condicion.isEmpty()) {
+                        condicion += " and " + condicion2;
+                    } else {
+                        condicion = condicion2;
+                    }
+                }                
+                consultar(condicion);
+
+            } catch (SQLException ex) {
+                Logger.getLogger(Ventana.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+        limpiarCamposConsulta();
+    }//GEN-LAST:event_BtnFiltrarActionPerformed
+
+    /**
+     * Metodo utilizado para cargar los datos en las tablas al ejecutar una
+     * consulta
+     *
+     * @param condicion
+     */
+    private void consultar(String condicion) {
+        String sch = "\"schinventario\".";
+        ResultSet select;
+        try {
+            // Verifica que tipo de consulta se debe realizar
+            if (rdbPorExistenciaSelected) {
+                Double valorInventario = 0.0;
+                String campos = "cod_articulo, descripcion, cod_familia, cod_marca, existencia, precio_sin_imp";
+                select = connection.select(campos, sch + "articulo", condicion);
+                while (select.next()) {
+                    String codArticulo = select.getString(1);
+                    String descripcion = select.getString(2);
+                    // Select para obtener la descripcion de la familia del articulo
+                    ResultSet select2 = connection.select("descripcion", sch + "familia_articulo",
+                            "cod_familia='" + select.getString(3) + "'");
+                    select2.next();
+                    String familia = select2.getString(1);
+                    // Select para obtener la descripcion de la marca del articulo
+                    select2 = connection.select("descripcion", sch + "marca_articulo",
+                            "cod_marca='" + select.getString(4) + "'");
+                    select2.next();
+                    String marca = select2.getString(1);
+                    Double existencia = select.getDouble(5);
+                    Double costo = select.getDouble(6);
+                    // Se calcula el costo del articulo y se suma al total de los productos
+                    Double costoTotal = existencia * costo;
+                    valorInventario += costoTotal;
+                    // Se crea un arreglo con los valores y se agrega a la tabla
+                    Object[] datos = {codArticulo, descripcion, familia, marca, existencia, costo, costoTotal};
+                    modeloArticuloConsulta.addRow(datos);
+                }
+                // Se crea un arreglo con los valores y se agrega a la tabla
+                Object[] datos = {"", "", "", "", "", "", valorInventario};
+                modeloArticuloConsulta.addRow(datos);
+            } else {
+                String campos = "*";
+                select = connection.select(campos, sch + "detalle_movimiento_inventario", condicion);
+                while (select.next()) {
+                    String numDocumento = select.getString(1);
+                    String numLinea = select.getString(2);
+                    // Select para obtener la descripcion del articulo
+                    ResultSet select2 = connection.select("descripcion", sch + "articulo",
+                            "cod_articulo='" + select.getString(3) + "'");
+                    select2.next();
+                    String articulo = select2.getString(1);
+                    // Select para obtener la descripcion del tipo de movimiento
+                    select2 = connection.select("descripcion", sch + "tipo_movimiento",
+                            "tipo_movimiento='" + select.getString(4) + "'");
+                    select2.next();
+                    String tipoMovimiento = select2.getString(1);
+                    String cantidad = select.getString(5);
+                    String saldoGeneral = select.getString(6);
+                    String existenciaPrevia = select.getString(7);
+                    String costo = select.getString(8);
+                    // Se crea un arreglo con los valores y se agrega a la tabla
+                    Object[] datos = {numDocumento, numLinea, articulo, tipoMovimiento,
+                        existenciaPrevia, costo, cantidad, saldoGeneral};
+                    modeloMovimientoConsulta.addRow(datos);
+
+                }
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(Ventana.class
+                    .getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    /**
+     * Metodo utilizado para limpiar todos los campos despues de realizar una
+     * consulta
+     */
+    private void limpiarCamposConsulta() {
+        // Restaura los componentes a su valor por default
+        txtCodArtConsulta.setText("");
+        txtDescArtConsulta.setText("");
+        txtCodFamConsulta.setText("");
+        txtDescFamConsulta.setText("");
+        txtCodMarcaConsulta.setText("");
+        txtDescMarcaConsulta.setText("");
+        cmbMarcaConsulta.setSelectedIndex(-1);
+        cmbFamiliaConsulta.setSelectedIndex(-1);
+        cmbTipoMovimientoConsulta.setSelectedIndex(-1);
+    }
+
+    /**
      * @param args the command line arguments
      */
     public static void main(String args[]) {
@@ -2239,16 +2731,21 @@ public class Ventana extends javax.swing.JFrame {
                 if ("Windows".equals(info.getName())) {
                     javax.swing.UIManager.setLookAndFeel(info.getClassName());
                     break;
+
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(Ventana.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Ventana.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(Ventana.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Ventana.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(Ventana.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Ventana.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(Ventana.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(Ventana.class
+                    .getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
         //</editor-fold>
@@ -2262,6 +2759,7 @@ public class Ventana extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton BtnFiltrar;
     private javax.swing.JButton Btn_Actualizar;
     private javax.swing.JButton Btn_Anular;
     private javax.swing.JButton Btn_Borrar;
@@ -2271,28 +2769,43 @@ public class Ventana extends javax.swing.JFrame {
     private javax.swing.JButton Btn_aplicar;
     private javax.swing.JComboBox Cmb_Tablas;
     private javax.swing.JLabel Lbl_Titulo;
-    private javax.swing.JPanel Pnl_Consultas;
+    private javax.swing.JLayeredPane PnlConsultas;
+    private javax.swing.JLayeredPane PnlProcesos;
     private javax.swing.JPanel Pnl_Mantenimiento;
     private javax.swing.JRadioButton Rdb_movimientoInventario;
     private javax.swing.JRadioButton Rdb_tomaFisica;
     private javax.swing.ButtonGroup Rdg_Consultas;
     private javax.swing.ButtonGroup Rdg_Procesos;
+    private javax.swing.JScrollPane ScrConsultaArticulo;
+    private javax.swing.JScrollPane ScrConsultaMovimiento;
     private javax.swing.JButton btn_CrearTomaMovimiento;
+    private javax.swing.JComboBox cmbFamiliaConsulta;
+    private javax.swing.JComboBox cmbMarcaConsulta;
+    private javax.swing.JComboBox cmbTipoMovimientoConsulta;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
-    private javax.swing.JLayeredPane jLayeredPane1;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JTabbedPane jTabbedPane1;
-    private javax.swing.JTable jTable1;
+    private javax.swing.JLabel lblArticuloConsulta;
+    private javax.swing.JLabel lblTipoMovConsulta;
     private javax.swing.JRadioButton rdb_PorExistencia;
     private javax.swing.JRadioButton rdb_PorMovimiento;
+    private javax.swing.JTable tblConsultaArticulo;
+    private javax.swing.JTable tblConsultaMovimiento;
     private javax.swing.JTable tbl_Tabla;
     private javax.swing.JTable tbl_detalleTomaMovimiento;
     private javax.swing.JTable tbl_tomaMovimiento;
+    private javax.swing.JTextField txtCodArtConsulta;
+    private javax.swing.JTextField txtCodFamConsulta;
+    private javax.swing.JTextField txtCodMarcaConsulta;
+    private javax.swing.JTextField txtDescArtConsulta;
+    private javax.swing.JTextField txtDescFamConsulta;
+    private javax.swing.JTextField txtDescMarcaConsulta;
     // End of variables declaration//GEN-END:variables
 }
